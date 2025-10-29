@@ -14,13 +14,13 @@ export default function LeaderboardScreen() {
   );
 
   useEffect(() => {
-    if (leaderboardQuery.data?.unlocked && leaderboardQuery.data?.data[0]) {
+    if (leaderboardQuery.data?.data[0]) {
       const timer = setTimeout(() => {
         setShowCelebration(true);
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [leaderboardQuery.data?.unlocked]);
+  }, [leaderboardQuery.data?.data]);
 
   const getMedalEmoji = (rank: number) => {
     if (rank === 1) return "🥇";
@@ -48,43 +48,33 @@ export default function LeaderboardScreen() {
         </Text>
       </View>
 
-      {!leaderboardQuery.data?.unlocked ? (
-        <View style={styles.lockedContainer}>
-          <Text style={styles.lockedEmoji}>🔒</Text>
-          <Text style={styles.lockedText}>
-            Results locked! Grandma will reveal soon!
-          </Text>
-          <Text style={styles.lockedSubtext}>Check back Tuesday 9 AM</Text>
-        </View>
-      ) : (
-        <View style={styles.leaderboardContainer}>
-          {leaderboardQuery.data?.data.map((entry) => (
-            <View
-              key={entry.uid}
-              style={[
-                styles.entryCard,
-                entry.rank <= 3 && styles.topThreeCard,
-              ]}
-            >
-              <View style={styles.entryLeft}>
-                <Text style={styles.rank}>
-                  {getMedalEmoji(entry.rank) || `#${entry.rank}`}
-                </Text>
-                <Text style={styles.name}>{entry.name}</Text>
-              </View>
-              <Text style={styles.points}>{entry.points} pts</Text>
-            </View>
-          ))}
-          
-          {leaderboardQuery.data?.data[0] && (
-            <View style={styles.trophy}>
-              <Text style={styles.trophyText}>
-                🏆 Grandma approves this week&apos;s winner!
+      <View style={styles.leaderboardContainer}>
+        {leaderboardQuery.data?.data.map((entry) => (
+          <View
+            key={entry.uid}
+            style={[
+              styles.entryCard,
+              entry.rank <= 3 && styles.topThreeCard,
+            ]}
+          >
+            <View style={styles.entryLeft}>
+              <Text style={styles.rank}>
+                {getMedalEmoji(entry.rank) || `#${entry.rank}`}
               </Text>
+              <Text style={styles.name}>{entry.name}</Text>
             </View>
-          )}
-        </View>
-      )}
+            <Text style={styles.points}>{entry.points} pts</Text>
+          </View>
+        ))}
+        
+        {leaderboardQuery.data?.data[0] && (
+          <View style={styles.trophy}>
+            <Text style={styles.trophyText}>
+              🏆 Grandma approves this week&apos;s winner!
+            </Text>
+          </View>
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -110,28 +100,7 @@ const styles = StyleSheet.create({
     color: "#E1E8ED",
     marginTop: 4,
   },
-  lockedContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 40,
-    marginTop: 60,
-  },
-  lockedEmoji: {
-    fontSize: 64,
-    marginBottom: 20,
-  },
-  lockedText: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  lockedSubtext: {
-    fontSize: 14,
-    color: "#E1E8ED",
-    textAlign: "center",
-  },
+
   leaderboardContainer: {
     padding: 16,
   },
