@@ -1,9 +1,8 @@
-const API_KEY = "219986";
-const BASE_URL = `https://www.thesportsdb.com/api/v1/json/${API_KEY}`;
+const ESPN_API = "https://site.api.espn.com/apis/site/v2/sports/football/nfl";
 
-async function fetchSportsDB(endpoint) {
-  const url = `${BASE_URL}${endpoint}`;
-  console.log("🔗 Fetching from TheSportsDB:", url);
+async function fetchESPN(endpoint) {
+  const url = `${ESPN_API}${endpoint}`;
+  console.log("🔗 Fetching from ESPN:", url);
   
   try {
     const response = await fetch(url);
@@ -13,51 +12,55 @@ async function fetchSportsDB(endpoint) {
     }
     
     const data = await response.json();
-    console.log("✅ API Response received");
+    console.log("✅ ESPN API Response received");
     return data;
   } catch (error) {
-    console.error("❌ TheSportsDB API Error:", error);
+    console.error("❌ ESPN API Error:", error);
     throw error;
   }
 }
 
-export async function fetchNFLSchedule(season = "2025-2026") {
+export async function fetchNFLSchedule(season = "2025") {
   try {
-    const data = await fetchSportsDB(`/eventsseason.php?id=4391&s=${season}`);
-    console.log(`📋 Fetched ${data?.event?.length || 0} games for ${season}`);
-    return data?.event || [];
+    const data = await fetchESPN(`/scoreboard?limit=1000&dates=${season}`);
+    console.log(`📋 Fetched ${data?.events?.length || 0} games for ${season}`);
+    return data?.events || [];
   } catch (error) {
     console.error("Failed to fetch NFL schedule:", error);
     return [];
   }
 }
 
-export async function fetchNFLWeekSchedule(week, season = "2025-2026") {
+export async function fetchNFLWeekSchedule(week, season = "2025") {
   try {
-    const allGames = await fetchNFLSchedule(season);
-    const weekGames = allGames.filter(
-      (g) => parseInt(g.intRound) === parseInt(week)
-    );
-
-    console.log(`🏈 Week ${week}: Found ${weekGames.length} games`);
-
-    return weekGames.map((game) => ({
-      id: game.idEvent,
-      homeTeam: game.strHomeTeam,
-      awayTeam: game.strAwayTeam,
-      kickoff: `${game.dateEvent} ${game.strTime || ""}`,
-      week: game.intRound,
-      venue: game.strVenue,
-      homeScore: game.intHomeScore,
-      awayScore: game.intAwayScore,
-      status: game.strStatus,
-      winner:
-        game.intHomeScore && game.intAwayScore
-          ? parseInt(game.intHomeScore) > parseInt(game.intAwayScore)
-            ? "home"
-            : "away"
+    const data = await fetchESPN(`/scoreboard?seasontype=2&week=${week}`);
+    const games = data?.events || [];
+    
+    console.log(`🏈 Week ${week}: Found ${games.length} games`);
+    
+    return games.map((event) => {
+      const competition = event.competitions[0];
+      const homeTeam = competition.competitors.find(c => c.homeAway === "home");
+      const awayTeam = competition.competitors.find(c => c.homeAway === "away");
+      
+      return {
+        id: event.id,
+        homeTeam: homeTeam.team.displayName,
+        awayTeam: awayTeam.team.displayName,
+        homeTeamLogo: homeTeam.team.logo,
+        awayTeamLogo: awayTeam.team.logo,
+        homeScore: homeTeam.score,
+        awayScore: awayTeam.score,
+        kickoff: event.date,
+        week: week.toString(),
+        venue: competition.venue?.fullName || "TBD",
+        status: competition.status.type.description,
+        completed: competition.status.type.completed,
+        winner: competition.status.type.completed 
+          ? (parseInt(homeTeam.score) > parseInt(awayTeam.score) ? "home" : "away")
           : null,
-    }));
+      };
+    });
   } catch (error) {
     console.error(`Failed to fetch week ${week} schedule:`, error);
     return [];
@@ -65,7 +68,7 @@ export async function fetchNFLWeekSchedule(week, season = "2025-2026") {
 }
 
 export function getCurrentNFLWeek() {
-  const seasonStart = new Date("2025-09-04");
+  const seasonStart = new Date("2024-09-05");
   const now = new Date();
   const diff = Math.floor((now - seasonStart) / (1000 * 60 * 60 * 24 * 7));
   const currentWeek = Math.min(Math.max(diff + 1, 1), 18);
