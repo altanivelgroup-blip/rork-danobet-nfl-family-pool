@@ -53,9 +53,8 @@ export default function LandingScreen() {
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
         <View style={styles.imageContainer}>
-          {/* TODO: Insert image source here */}
           <Image
-            source={{ uri: "https://via.placeholder.com/180" }}
+            source={{ uri: "https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/i0x7khabc8qq558cnkt0m" }}
             style={styles.image}
           />
         </View>
