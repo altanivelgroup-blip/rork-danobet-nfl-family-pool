@@ -1,8 +1,6 @@
-// ✅ SportsDB Premium API (v2)
-// Fix for header authentication in Rork environment
-
 const BASE_URL = "https://www.thesportsdb.com/api/v2/json";
-const API_KEY = "219986"; // your premium key
+const API_KEY = "219986";
+
 export function getCurrentNFLWeek() {
   const seasonStart = new Date("2024-09-05");
   const now = new Date();
@@ -10,7 +8,11 @@ export function getCurrentNFLWeek() {
   return Math.min(Math.max(diff + 1, 1), 18);
 }
 
-
+export async function getNFLGames(week) {
+  try {
+    const response = await fetch(
+      `${BASE_URL}/${API_KEY}/eventsseason.php?id=4391&s=2024-2025`
+    );
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
