@@ -20,7 +20,18 @@ export async function getNFLGames(week) {
 
     const data = await response.json();
     console.log("✅ API Connected:", data);
-    return data?.events || [];
+    
+    const events = data?.events || [];
+    
+    return events.map((event) => ({
+      id: event.idEvent,
+      homeTeam: event.strHomeTeam,
+      awayTeam: event.strAwayTeam,
+      kickoff: event.dateEvent + " " + event.strTime,
+      winner: event.intHomeScore && event.intAwayScore 
+        ? (parseInt(event.intHomeScore) > parseInt(event.intAwayScore) ? "home" : "away")
+        : null
+    }));
   } catch (error) {
     console.error("❌ SportsDB API Error:", error);
     return [];

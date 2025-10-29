@@ -1,22 +1,30 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, ScrollView } from "react-native";
-import { fetchNFLWeekSchedule, getCurrentNFLWeek } from "@/services/sportsdb";
+import { getNFLGames, getCurrentNFLWeek } from "@/services/sportsdb";
+
+interface NFLGame {
+  id: string;
+  homeTeam: string;
+  awayTeam: string;
+  kickoff: string;
+  winner: "home" | "away" | null;
+}
 
 export default function NFLScheduleTest() {
-  const [games, setGames] = useState([]);
-  const [week, setWeek] = useState(getCurrentNFLWeek());
+  const [games, setGames] = useState<NFLGame[]>([]);
+  const [week] = useState(getCurrentNFLWeek());
 
   useEffect(() => {
     async function load() {
-      const result = await fetchNFLWeekSchedule(week);
+      const result = await getNFLGames(week);
       console.log("🏈 NFL Week", week, "Games:", result);
       setGames(result);
     }
     load();
-  }, []);
+  }, [week]);
 
   return (
-    <ScrollView style={{ padding: 20 }}>
+    <ScrollView style={{ flex: 1, padding: 20, paddingTop: 60 }} contentInsetAdjustmentBehavior="automatic">
       <Text style={{ fontSize: 22, fontWeight: "bold", marginBottom: 10 }}>
         NFL Week {week} Schedule
       </Text>
