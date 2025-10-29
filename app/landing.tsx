@@ -45,7 +45,7 @@ export default function LandingScreen() {
       duration: 300,
       useNativeDriver: true,
     }).start(() => {
-      router.replace("/(tabs)");
+      router.replace("/(tabs)/picks");
     });
   };
 
