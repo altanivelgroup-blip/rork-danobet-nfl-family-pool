@@ -1,23 +1,40 @@
-// template
 import { Tabs } from "expo-router";
-import { Code } from "lucide-react-native";
+import { Trophy, BarChart3, Settings } from "lucide-react-native";
 import React from "react";
-
-import Colors from "@/constants/colors";
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors.light.tint,
-        headerShown: true,
+        tabBarActiveTintColor: "#FC4C02",
+        tabBarInactiveTintColor: "#E1E8ED",
+        tabBarStyle: {
+          backgroundColor: "#002C5F",
+          borderTopColor: "#008E97",
+          borderTopWidth: 2,
+        },
+        headerShown: false,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: "Tab One",
-          tabBarIcon: ({ color }) => <Code color={color} />,
+          title: "Picks",
+          tabBarIcon: ({ color }) => <Trophy color={color} size={24} />,
+        }}
+      />
+      <Tabs.Screen
+        name="leaderboard"
+        options={{
+          title: "Leaderboard",
+          tabBarIcon: ({ color }) => <BarChart3 color={color} size={24} />,
+        }}
+      />
+      <Tabs.Screen
+        name="admin"
+        options={{
+          title: "Admin",
+          tabBarIcon: ({ color }) => <Settings color={color} size={24} />,
         }}
       />
     </Tabs>
