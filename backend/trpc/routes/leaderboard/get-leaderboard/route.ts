@@ -20,19 +20,7 @@ export const getLeaderboardRoute = publicProcedure
     })
   )
   .query(async ({ input }) => {
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    const tuesday = 2;
-    const isAfterTuesday = dayOfWeek >= tuesday;
-    
-    const isUnlocked = isAfterTuesday;
-
-    if (!isUnlocked) {
-      return {
-        unlocked: false,
-        data: [],
-      };
-    }
+    const isUnlocked = true;
 
     const games = await fetchNFLWeekSchedule(input.week, "2025-2026");
     
