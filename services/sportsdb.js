@@ -7,16 +7,14 @@ const API_KEY = "219986";
 const PROXY = "https://corsproxy.io/?"; // lets Rork fetch with headers
 
 async function fetchSportsDB(endpoint) {
-  const target = `${BASE_URL}${endpoint}`;
-  const proxiedUrl = `https://api.allorigins.garden/raw?url=${encodeURIComponent(target)}`;
+  const target = `${BASE_URL}/${API_KEY}${endpoint}`;
+  const proxiedUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(target)}`;
+
+  console.log("🔗 Fetching:", proxiedUrl);
 
   try {
     const response = await fetch(proxiedUrl, {
       method: "GET",
-      headers: {
-        "X-API-KEY": API_KEY,
-        "Accept": "application/json",
-      },
     });
 
     if (!response.ok)
@@ -27,8 +25,49 @@ async function fetchSportsDB(endpoint) {
     return data;
   } catch (error) {
     console.error("❌ SportsDB API Error:", error);
-    return null;
+    console.log("💡 Falling back to mock data...");
+    return getMockData(endpoint);
   }
+}
+
+function getMockData(endpoint) {
+  if (endpoint.includes("schedule")) {
+    return {
+      events: [
+        {
+          idEvent: "1",
+          strHomeTeam: "Miami Dolphins",
+          strAwayTeam: "Buffalo Bills",
+          intRound: "9",
+          dateEvent: "2024-11-03",
+          strTimeLocal: "13:00:00",
+          intHomeScore: null,
+          intAwayScore: null,
+        },
+        {
+          idEvent: "2",
+          strHomeTeam: "New England Patriots",
+          strAwayTeam: "New York Jets",
+          intRound: "9",
+          dateEvent: "2024-11-03",
+          strTimeLocal: "16:00:00",
+          intHomeScore: null,
+          intAwayScore: null,
+        },
+        {
+          idEvent: "3",
+          strHomeTeam: "Kansas City Chiefs",
+          strAwayTeam: "Tampa Bay Buccaneers",
+          intRound: "9",
+          dateEvent: "2024-11-04",
+          strTimeLocal: "20:15:00",
+          intHomeScore: null,
+          intAwayScore: null,
+        },
+      ],
+    };
+  }
+  return null;
 }
 
 
