@@ -49,6 +49,8 @@ export async function fetchNFLWeekSchedule(week, season = "2024") {
         awayTeam: awayTeam.team.displayName,
         homeTeamLogo: homeTeam.team.logo,
         awayTeamLogo: awayTeam.team.logo,
+        homeTeamRecord: homeTeam.records?.[0]?.summary || "0-0",
+        awayTeamRecord: awayTeam.records?.[0]?.summary || "0-0",
         homeScore: homeTeam.score,
         awayScore: awayTeam.score,
         kickoff: event.date,

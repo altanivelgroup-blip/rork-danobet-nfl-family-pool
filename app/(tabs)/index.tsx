@@ -26,6 +26,8 @@ interface Game {
   awayTeam: string;
   homeTeamLogo: string;
   awayTeamLogo: string;
+  homeTeamRecord: string;
+  awayTeamRecord: string;
   homeScore: string;
   awayScore: string;
   kickoff: string;
@@ -169,6 +171,7 @@ export default function PicksScreen() {
                       style={styles.teamLogo}
                     />
                     <Text style={styles.teamName}>{game.awayTeam}</Text>
+                    <Text style={styles.teamRecord}>{game.awayTeamRecord}</Text>
                     {selectedPick === "away" && (
                       <View style={styles.checkmark}>
                         <Text style={styles.checkmarkText}>✓</Text>
@@ -190,6 +193,7 @@ export default function PicksScreen() {
                       style={styles.teamLogo}
                     />
                     <Text style={styles.teamName}>{game.homeTeam}</Text>
+                    <Text style={styles.teamRecord}>{game.homeTeamRecord}</Text>
                     {selectedPick === "home" && (
                       <View style={styles.checkmark}>
                         <Text style={styles.checkmarkText}>✓</Text>
@@ -326,6 +330,13 @@ const styles = StyleSheet.create({
     fontWeight: "600" as const,
     color: "#FFFFFF",
     textAlign: "center",
+  },
+  teamRecord: {
+    fontSize: 11,
+    fontWeight: "500" as const,
+    color: "#9CA3AF",
+    textAlign: "center",
+    marginTop: 2,
   },
   checkmark: {
     position: "absolute",
