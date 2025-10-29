@@ -1,57 +1,28 @@
-// ✅ TheSportsDB Premium (v2) Integration
-// Version: 2.0
-// Works in Rork / Expo JavaScript environment
+// ✅ SportsDB Premium API (v2)
+// Fix for header authentication in Rork environment
 
 const BASE_URL = "https://www.thesportsdb.com/api/v2/json";
-const API_KEY = "219986"; // Your premium key
+const API_KEY = "219986"; // your premium key
 
-// 🔹 Generic Fetch Helper
-async function fetchSportsDB(endpoint) {
+export async function fetchNFLSchedule(season = "2024-2025") {
   try {
-    const response = await fetch(`${BASE_URL}${endpoint}`, {
-      headers: { "X-API-KEY": API_KEY },
+    const response = await fetch(`${BASE_URL}/schedule/league/4391/${season}`, {
+      method: "GET",
+      headers: {
+        "X-API-KEY": API_KEY,
+        "Accept": "application/json",
+      },
     });
-    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
     const data = await response.json();
-    return data;
+    console.log("✅ API Connected:", data);
+    return data?.events || [];
   } catch (error) {
-    console.error("SportsDB API Error:", error);
-    return null;
+    console.error("❌ SportsDB API Error:", error);
+    return [];
   }
 }
-
-// 🏈 Fetch full NFL Season Schedule (League ID 4391 = NFL)
-export const fetchNFLSchedule = async (season = "2024-2025") => {
-  const data = await fetchSportsDB(`/schedule/league/4391/${season}`);
-  return data?.events || [];
-};
-
-// 🗓 Fetch a Specific Week’s Schedule
-export const fetchNFLWeekSchedule = async (week, season = "2024-2025") => {
-  const allGames = await fetchNFLSchedule(season);
-  const weekGames = allGames.filter((g) => parseInt(g.intRound) === parseInt(week));
-
-  return weekGames.map((game) => ({
-    id: game.idEvent,
-    homeTeam: game.strHomeTeam,
-    awayTeam: game.strAwayTeam,
-    kickoff: game.dateEvent + " " + game.strTimeLocal,
-    timestamp: new Date(game.dateEvent + "T" + game.strTimeLocal).getTime(),
-    homeScore: game.intHomeScore,
-    awayScore: game.intAwayScore,
-    winner:
-      game.intHomeScore && game.intAwayScore
-        ? parseInt(game.intHomeScore) > parseInt(game.intAwayScore)
-          ? "home"
-          : "away"
-        : null,
-  }));
-};
-
-// ⏱ Calculate Current NFL Week (2024 Season start)
-export const getCurrentNFLWeek = () => {
-  const seasonStart = new Date("2024-09-05");
-  const now = new Date();
-  const diff = Math.floor((now - seasonStart) / (1000 * 60 * 60 * 24 * 7));
-  return Math.min(Math.max(diff + 1, 1), 18);
-};
