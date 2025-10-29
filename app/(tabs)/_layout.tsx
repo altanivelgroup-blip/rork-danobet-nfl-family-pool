@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Trophy, BarChart3, Settings } from "lucide-react-native";
+import { Trophy, BarChart3, Settings, Calendar } from "lucide-react-native";
 import React from "react";
 
 export default function TabLayout() {
@@ -28,6 +28,13 @@ export default function TabLayout() {
         options={{
           title: "Leaderboard",
           tabBarIcon: ({ color }) => <BarChart3 color={color} size={24} />,
+        }}
+      />
+      <Tabs.Screen
+        name="season"
+        options={{
+          title: "Season",
+          tabBarIcon: ({ color }) => <Calendar color={color} size={24} />,
         }}
       />
       <Tabs.Screen

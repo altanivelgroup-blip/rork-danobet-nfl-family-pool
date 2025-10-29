@@ -1,14 +1,26 @@
 import { StyleSheet, Text, View, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { trpc } from "@/lib/trpc";
+import { useState, useEffect } from "react";
+import WinnerCelebration from "@/components/WinnerCelebration";
 
 export default function LeaderboardScreen() {
   const insets = useSafeAreaInsets();
+  const [showCelebration, setShowCelebration] = useState(false);
   const weekQuery = trpc.weeks.getCurrent.useQuery();
   const leaderboardQuery = trpc.leaderboard.get.useQuery(
     { week: weekQuery.data?.week || 9 },
     { enabled: !!weekQuery.data }
   );
+
+  useEffect(() => {
+    if (leaderboardQuery.data?.unlocked && leaderboardQuery.data?.data[0]) {
+      const timer = setTimeout(() => {
+        setShowCelebration(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [leaderboardQuery.data?.unlocked]);
 
   const getMedalEmoji = (rank: number) => {
     if (rank === 1) return "🥇";
@@ -17,8 +29,18 @@ export default function LeaderboardScreen() {
     return "";
   };
 
+  const winner = leaderboardQuery.data?.data[0];
+
   return (
     <ScrollView style={styles.container}>
+      {winner && (
+        <WinnerCelebration
+          visible={showCelebration}
+          winnerName={winner.name}
+          winnerPoints={winner.points}
+          onClose={() => setShowCelebration(false)}
+        />
+      )}
       <View style={[styles.header, { paddingTop: insets.top + 24 }]}>
         <Text style={styles.headerText}>🏆 Weekly Leaderboard</Text>
         <Text style={styles.subHeader}>

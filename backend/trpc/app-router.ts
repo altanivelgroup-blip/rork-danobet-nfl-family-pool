@@ -5,6 +5,7 @@ import getGamesRoute from "./routes/games/get-games/route";
 import submitPicksRoute from "./routes/picks/submit-picks/route";
 import getPicksRoute from "./routes/picks/get-picks/route";
 import getLeaderboardRoute from "./routes/leaderboard/get-leaderboard/route";
+import getSeasonRoute from "./routes/leaderboard/get-season/route";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -22,6 +23,7 @@ export const appRouter = createTRPCRouter({
   }),
   leaderboard: createTRPCRouter({
     get: getLeaderboardRoute,
+    getSeason: getSeasonRoute,
   }),
 });
 

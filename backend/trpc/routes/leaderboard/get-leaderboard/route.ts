@@ -1,13 +1,16 @@
 import { publicProcedure } from "@/backend/trpc/create-context";
 import { z } from "zod";
+import { fetchNFLWeekSchedule } from "@/services/sportsdb";
 
-const mockLeaderboard = [
-  { rank: 1, name: "Grandma Rose", points: 7, uid: "user1" },
-  { rank: 2, name: "Uncle Mike", points: 6, uid: "user2" },
-  { rank: 3, name: "Cousin Sarah", points: 6, uid: "user3" },
-  { rank: 4, name: "Dad", points: 5, uid: "user4" },
-  { rank: 5, name: "Mom", points: 5, uid: "user5" },
+const FAMILY_MEMBERS = [
+  { id: "1", name: "You", emoji: "👤" },
+  { id: "2", name: "Grandma", emoji: "👵" },
+  { id: "3", name: "Uncle Mike", emoji: "👨" },
+  { id: "4", name: "Aunt Sarah", emoji: "👩" },
+  { id: "5", name: "Cousin Jake", emoji: "🧑" },
 ];
+
+const picksStore = new Map<string, any>();
 
 export const getLeaderboardRoute = publicProcedure
   .input(
@@ -15,17 +18,55 @@ export const getLeaderboardRoute = publicProcedure
       week: z.number(),
     })
   )
-  .query(({ input }) => {
+  .query(async ({ input }) => {
     const now = new Date();
-    const tuesday = new Date();
-    tuesday.setDate(tuesday.getDate() + ((9 - tuesday.getDay()) % 7));
-    tuesday.setHours(9, 0, 0, 0);
+    const dayOfWeek = now.getDay();
+    const tuesday = 2;
+    const isAfterTuesday = dayOfWeek >= tuesday;
+    
+    const isUnlocked = isAfterTuesday;
 
-    const isUnlocked = now >= tuesday;
+    if (!isUnlocked) {
+      return {
+        unlocked: false,
+        data: [],
+      };
+    }
+
+    const games = await fetchNFLWeekSchedule(input.week, "2025-2026");
+    
+    const leaderboard = FAMILY_MEMBERS.map((member) => {
+      const pickKey = `${member.id}_${input.week}`;
+      const userPicks = picksStore.get(pickKey);
+      
+      let points = 0;
+      
+      if (userPicks && userPicks.picks) {
+        games.forEach((game: any) => {
+          const pick = userPicks.picks[game.id];
+          if (pick && game.winner && pick === game.winner) {
+            points++;
+          }
+        });
+      }
+      
+      return {
+        uid: member.id,
+        name: member.name,
+        points,
+      };
+    });
+
+    leaderboard.sort((a, b) => b.points - a.points);
+    
+    const rankedLeaderboard = leaderboard.map((entry, index) => ({
+      ...entry,
+      rank: index + 1,
+    }));
 
     return {
-      unlocked: isUnlocked,
-      data: isUnlocked ? mockLeaderboard : [],
+      unlocked: true,
+      data: rankedLeaderboard,
     };
   });
 
