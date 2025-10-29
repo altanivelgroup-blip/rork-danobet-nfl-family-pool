@@ -10,10 +10,10 @@ const FAMILY_MEMBERS = [
 ];
 
 export const getSeasonRoute = publicProcedure.query(() => {
-  const seasonStats = FAMILY_MEMBERS.map((member, index) => {
-    const totalWins = 35 - index * 7;
-    const totalGames = 50;
-    const winRate = Math.round((totalWins / totalGames) * 100);
+  const seasonStats = FAMILY_MEMBERS.map((member) => {
+    const totalWins = 0;
+    const totalGames = 0;
+    const winRate = 0;
 
     return {
       uid: member.id,
@@ -25,7 +25,7 @@ export const getSeasonRoute = publicProcedure.query(() => {
     };
   });
 
-  return seasonStats.sort((a, b) => b.totalWins - a.totalWins);
+  return seasonStats;
 });
 
 export default getSeasonRoute;
