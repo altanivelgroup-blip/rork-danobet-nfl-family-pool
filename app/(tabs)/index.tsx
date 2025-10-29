@@ -10,7 +10,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { trpc } from "@/lib/trpc";
-import { ChevronRight, Lock } from "lucide-react-native";
+import { ChevronRight, Lock, Trophy } from "lucide-react-native";
+import WinnerCelebration from "@/components/WinnerCelebration";
 
 const FAMILY_MEMBERS = [
   { id: "1", name: "Grandma", emoji: "👵" },
@@ -41,6 +42,7 @@ export default function PicksScreen() {
   const insets = useSafeAreaInsets();
   const [selectedMember, setSelectedMember] = useState(FAMILY_MEMBERS[0].id);
   const [picks, setPicks] = useState<Record<string, "home" | "away">>({});
+  const [showCelebration, setShowCelebration] = useState(false);
 
   React.useEffect(() => {
     setPicks({});
@@ -102,12 +104,25 @@ export default function PicksScreen() {
 
   return (
     <View style={styles.container}>
+      <WinnerCelebration
+        visible={showCelebration}
+        winnerName="Grandma"
+        winnerPoints={12}
+        onClose={() => setShowCelebration(false)}
+      />
       <View style={[styles.header, { paddingTop: insets.top + 24 }]}>
         <Text style={styles.headerText}>🏈 Make Your Picks</Text>
         <Text style={styles.subHeader}>
           Week {weekQuery.data?.week || "..."} • {weekQuery.data?.startDate} -{" "}
           {weekQuery.data?.endDate}
         </Text>
+        <TouchableOpacity
+          style={styles.demoButton}
+          onPress={() => setShowCelebration(true)}
+        >
+          <Trophy size={16} color="#FFD700" />
+          <Text style={styles.demoButtonText}>Demo Winner Trophy</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.memberSelector}>
@@ -398,5 +413,22 @@ const styles = StyleSheet.create({
     color: "#E1E8ED",
     marginTop: 8,
     textAlign: "center",
+  },
+  demoButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFD70020",
+    borderWidth: 1,
+    borderColor: "#FFD700",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginTop: 12,
+    gap: 6,
+  },
+  demoButtonText: {
+    fontSize: 12,
+    fontWeight: "600" as const,
+    color: "#FFD700",
   },
 });
