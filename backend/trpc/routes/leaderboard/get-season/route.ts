@@ -1,11 +1,12 @@
 import { publicProcedure } from "@/backend/trpc/create-context";
 
 const FAMILY_MEMBERS = [
-  { id: "1", name: "You", emoji: "👤" },
-  { id: "2", name: "Grandma", emoji: "👵" },
-  { id: "3", name: "Uncle Mike", emoji: "👨" },
-  { id: "4", name: "Aunt Sarah", emoji: "👩" },
-  { id: "5", name: "Cousin Jake", emoji: "🧑" },
+  { id: "1", name: "Grandma", emoji: "👵" },
+  { id: "2", name: "Dave", emoji: "👨" },
+  { id: "3", name: "Grandpa", emoji: "👴" },
+  { id: "4", name: "John", emoji: "👨" },
+  { id: "5", name: "Nena", emoji: "👩" },
+  { id: "6", name: "Zaky", emoji: "🧑" },
 ];
 
 export const getSeasonRoute = publicProcedure.query(() => {
