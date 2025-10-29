@@ -1,14 +1,17 @@
-import { StyleSheet, Text, View, Image, ScrollView } from "react-native";
+import { StyleSheet, Text, View, ScrollView } from "react-native";
+import { Image } from "expo-image";
 
 export default function TabOneScreen() {
   return (
     <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
       <View style={styles.headerContainer}>
         <Image
-          source={require("@/assets/images/dano-tribute.png")}
+          source={{ uri: "https://images.unsplash.com/photo-1518600506278-4e8ef466b810?w=400&q=80&auto=format&fit=crop" }}
           style={styles.tributeImage}
+          accessibilityLabel="Dano tribute portrait"
+          testID="tribute-image"
         />
-        <Text style={styles.tributeText}>
+        <Text style={styles.tributeText} testID="tribute-text">
           Dano says: Choose wisely… are you happy with your picks?
         </Text>
       </View>
