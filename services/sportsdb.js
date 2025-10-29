@@ -70,7 +70,7 @@ export async function fetchNFLWeekSchedule(week, season = "2024") {
 }
 
 export function getCurrentNFLWeek() {
-  const seasonStart = new Date("2025-09-04");
+  const seasonStart = new Date("2024-09-05");
   const now = new Date();
   
   const dayOfWeek = now.getDay();
