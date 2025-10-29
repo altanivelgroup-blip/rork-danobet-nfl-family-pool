@@ -1,7 +1,6 @@
 import { publicProcedure } from "@/backend/trpc/create-context";
 import { z } from "zod";
-
-const picksStore = new Map<string, any>();
+import { picksStore } from "../submit-picks/route";
 
 export const getPicksRoute = publicProcedure
   .input(

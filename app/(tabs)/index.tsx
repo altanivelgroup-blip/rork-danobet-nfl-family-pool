@@ -39,14 +39,28 @@ export default function PicksScreen() {
   const [selectedMember, setSelectedMember] = useState(FAMILY_MEMBERS[0].id);
   const [picks, setPicks] = useState<Record<string, "home" | "away">>({});
 
+  React.useEffect(() => {
+    setPicks({});
+  }, [selectedMember]);
+
   const weekQuery = trpc.weeks.getCurrent.useQuery();
   const gamesQuery = trpc.games.getGames.useQuery(
     { week: weekQuery.data?.week || 1 },
     { enabled: !!weekQuery.data }
   );
 
+  const picksQuery = trpc.picks.get.useQuery(
+    {
+      userId: selectedMember,
+      week: weekQuery.data?.week || 1,
+    },
+    { enabled: !!weekQuery.data }
+  );
+
   const submitPicksMutation = trpc.picks.submit.useMutation({
     onSuccess: () => {
+      setPicks({});
+      picksQuery.refetch();
       Alert.alert(
         "✅ Picks Submitted!",
         `Your picks for Week ${weekQuery.data?.week} are locked in!`
