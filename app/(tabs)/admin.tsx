@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
+import { router } from "expo-router";
 
 export default function AdminScreen() {
   const insets = useSafeAreaInsets();
@@ -23,6 +24,20 @@ export default function AdminScreen() {
         text: "Reset",
         onPress: () => {
           console.log("Admin action: Reset week");
+        },
+      },
+    ]);
+  };
+
+  const handleSignOut = () => {
+    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Sign Out",
+        style: "destructive",
+        onPress: () => {
+          console.log("Admin signed out");
+          router.replace("/landing");
         },
       },
     ]);
@@ -79,6 +94,16 @@ export default function AdminScreen() {
             <Text style={styles.statusText}>✅ Database Active</Text>
             <Text style={styles.statusText}>✅ Leaderboard Synced</Text>
           </View>
+        </View>
+
+        <View style={[styles.section, { paddingBottom: insets.bottom + 20 }]}>
+          <TouchableOpacity
+            style={[styles.button, styles.dangerButton]}
+            onPress={handleSignOut}
+            testID="sign-out"
+          >
+            <Text style={styles.buttonText}>🚪 Sign Out</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </ScrollView>
@@ -137,6 +162,10 @@ const styles = StyleSheet.create({
   },
   warningButton: {
     backgroundColor: "#FC4C02",
+  },
+  dangerButton: {
+    backgroundColor: "#DC2626",
+    borderRadius: 25,
   },
   buttonText: {
     fontSize: 16,
