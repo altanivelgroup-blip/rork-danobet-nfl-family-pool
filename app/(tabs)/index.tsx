@@ -6,20 +6,40 @@ import { trpc } from "@/lib/trpc";
 
 const MOCK_USER_ID = "user123";
 
+/** 🏈 AUTO-DETECT CURRENT NFL WEEK (2025 season) */
+function getCurrentNFLWeek() {
+  // 2025 NFL season kickoff date (Thursday, September 4, 2025)
+  const seasonStart = new Date("2025-09-04T00:00:00Z");
+  const now = new Date();
+
+  // Calculate number of weeks since kickoff
+  const diffWeeks = Math.floor(
+    (now.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000)
+  );
+
+  // Week 1 = kickoff week
+  const week = diffWeeks + 1;
+
+  // Clamp between 1–18
+  return Math.min(Math.max(week, 1), 18);
+}
+
 export default function TabOneScreen() {
   const insets = useSafeAreaInsets();
   const [selectedPicks, setSelectedPicks] = useState<Record<string, "home" | "away">>({});
-  
-  const weekQuery = trpc.weeks.getCurrent.useQuery();
+
+  // ✅ Automatically detect the current week
+  const currentWeek = getCurrentNFLWeek();
+
   const gamesQuery = trpc.games.getGames.useQuery(
-    { week: weekQuery.data?.week || 9 },
-    { enabled: !!weekQuery.data }
+    { week: currentWeek },
+    { enabled: true }
   );
   const picksQuery = trpc.picks.get.useQuery(
-    { userId: MOCK_USER_ID, week: weekQuery.data?.week || 9 },
-    { enabled: !!weekQuery.data }
+    { userId: MOCK_USER_ID, week: currentWeek },
+    { enabled: true }
   );
-  
+
   const submitPicksMutation = trpc.picks.submit.useMutation({
     onSuccess: () => {
       Alert.alert("Success", "Picks locked in! 🏈");
@@ -31,7 +51,7 @@ export default function TabOneScreen() {
   });
 
   const isLocked = picksQuery.data?.locked || false;
-  
+
   const isPastKickoff = useMemo(() => {
     if (!gamesQuery.data || gamesQuery.data.length === 0) return false;
     const firstGame = gamesQuery.data[0];
@@ -50,7 +70,7 @@ export default function TabOneScreen() {
   const handleSubmitPicks = () => {
     const games = gamesQuery.data || [];
     const pickedGames = Object.keys(selectedPicks).length;
-    
+
     if (pickedGames < games.length) {
       Alert.alert("Incomplete", "You missed a game! Pick all before kickoff.");
       return;
@@ -58,7 +78,7 @@ export default function TabOneScreen() {
 
     submitPicksMutation.mutate({
       userId: MOCK_USER_ID,
-      week: weekQuery.data?.week || 9,
+      week: currentWeek,
       picks: selectedPicks,
     });
   };
@@ -78,12 +98,8 @@ export default function TabOneScreen() {
       </View>
 
       <View style={styles.weekHeader}>
-        <Text style={styles.weekTitle}>
-          Week {weekQuery.data?.week || "..."}:
-        </Text>
-        <Text style={styles.weekDates}>
-          {weekQuery.data?.startDate} – {weekQuery.data?.endDate}
-        </Text>
+        <Text style={styles.weekTitle}>Week {currentWeek}</Text>
+        <Text style={styles.weekDates}>Auto-updates every Tuesday ⏰</Text>
       </View>
 
       {isLocked && (
@@ -119,7 +135,6 @@ export default function TabOneScreen() {
                   ]}
                   onPress={() => handlePickTeam(game.id, "away")}
                   disabled={isLocked || isPastKickoff}
-                  testID={`pick-away-${game.id}`}
                 >
                   <Text
                     style={[
@@ -140,7 +155,6 @@ export default function TabOneScreen() {
                   ]}
                   onPress={() => handlePickTeam(game.id, "home")}
                   disabled={isLocked || isPastKickoff}
-                  testID={`pick-home-${game.id}`}
                 >
                   <Text
                     style={[
@@ -174,7 +188,6 @@ export default function TabOneScreen() {
             ]}
             onPress={handleSubmitPicks}
             disabled={submitPicksMutation.isPending}
-            testID="submit-picks"
           >
             <Text style={styles.submitButtonText}>
               {submitPicksMutation.isPending ? "Submitting..." : "🏈 Lock In My Picks"}
