@@ -32,7 +32,7 @@ export async function fetchNFLSchedule(season = "2025-2026") {
   }
 }
 
-export async function fetchNFLWeekSchedule(week, season = "2024-2025") {
+export async function fetchNFLWeekSchedule(week, season = "2025-2026") {
   try {
     const allGames = await fetchNFLSchedule(season);
     const weekGames = allGames.filter(
