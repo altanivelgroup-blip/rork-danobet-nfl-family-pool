@@ -67,7 +67,7 @@ export default function TabOneScreen() {
     <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
       <View style={[styles.headerContainer, { paddingTop: insets.top + 24 }]}>
         <Image
-          source={{ uri: "https://images.unsplash.com/photo-1518600506278-4e8ef466b810?w=400&q=80&auto=format&fit=crop" }}
+          source={{ uri: "https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/tol8fv7mlzkzpw4c2klu4" }}
           style={styles.tributeImage}
           accessibilityLabel="Dano tribute portrait"
           testID="tribute-image"
