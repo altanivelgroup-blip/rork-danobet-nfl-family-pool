@@ -1,5 +1,5 @@
-const BASE_URL = "https://www.thesportsdb.com/api/v2/json";
-const API_KEY = "219986";
+const BASE_URL = "https://www.thesportsdb.com/api/v1/json";
+const API_KEY = "3";
 
 export function getCurrentNFLWeek() {
   const seasonStart = new Date("2024-09-05");
@@ -11,7 +11,7 @@ export function getCurrentNFLWeek() {
 export async function getNFLGames(week) {
   try {
     const response = await fetch(
-      `${BASE_URL}/${API_KEY}/eventsseason.php?id=4391&s=2024-2025`
+      `${BASE_URL}/${API_KEY}/eventsseason.php?id=4391&s=2024`
     );
 
     if (!response.ok) {
