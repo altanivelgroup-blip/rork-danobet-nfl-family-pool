@@ -70,8 +70,16 @@ export async function fetchNFLWeekSchedule(week, season = "2024") {
 export function getCurrentNFLWeek() {
   const seasonStart = new Date("2025-09-04");
   const now = new Date();
-  const diff = Math.floor((now - seasonStart) / (1000 * 60 * 60 * 24 * 7));
+  
+  const dayOfWeek = now.getDay();
+  
+  let adjustedDate = new Date(now);
+  if (dayOfWeek >= 2) {
+    adjustedDate.setDate(adjustedDate.getDate() + (7 - dayOfWeek + 2));
+  }
+  
+  const diff = Math.floor((adjustedDate - seasonStart) / (1000 * 60 * 60 * 24 * 7));
   const currentWeek = Math.min(Math.max(diff + 1, 1), 18);
-  console.log("📆 Current NFL Week:", currentWeek);
+  console.log("📆 Current NFL Week:", currentWeek, "(Day of week:", dayOfWeek, ")");
   return currentWeek;
 }
