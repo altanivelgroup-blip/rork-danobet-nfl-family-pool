@@ -1,49 +1,57 @@
-const SPORTSDB_API_KEY = process.env.EXPO_PUBLIC_SPORTSDB_API_KEY || '3';
-const BASE_URL = 'https://www.thesportsdb.com/api/v1/json';
+// ✅ TheSportsDB Premium (v2) Integration
+// Version: 2.0
+// Works in Rork / Expo JavaScript environment
 
-export const fetchNFLSchedule = async (season = '2024') => {
-  try {
-    const response = await fetch(
-      `${BASE_URL}/${SPORTSDB_API_KEY}/eventsseason.php?id=4391&s=${season}`
-    );
-    const data = await response.json();
-    return data.events || [];
-  } catch (error) {
-    console.error('Error fetching NFL schedule:', error);
-    throw error;
-  }
-};
+const BASE_URL = "https://www.thesportsdb.com/api/v2/json";
+const API_KEY = "219986"; // Your premium key
 
-export const fetchNFLWeekSchedule = async (week, season = '2024') => {
+// 🔹 Generic Fetch Helper
+async function fetchSportsDB(endpoint) {
   try {
-    const allGames = await fetchNFLSchedule(season);
-    const weekGames = allGames.filter(game => {
-      const gameWeek = parseInt(game.intRound);
-      return gameWeek === parseInt(week);
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
+      headers: { "X-API-KEY": API_KEY },
     });
-    return weekGames.map(game => ({
-      id: game.idEvent,
-      gameId: game.idEvent,
-      homeTeam: game.strHomeTeam,
-      awayTeam: game.strAwayTeam,
-      kickoff: game.dateEvent + ' ' + game.strTime,
-      timestamp: new Date(game.dateEvent + ' ' + game.strTime).getTime(),
-      homeScore: game.intHomeScore,
-      awayScore: game.intAwayScore,
-      winner: game.intHomeScore && game.intAwayScore 
-        ? (parseInt(game.intHomeScore) > parseInt(game.intAwayScore) ? 'home' : 'away')
-        : null,
-    }));
+    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+    const data = await response.json();
+    return data;
   } catch (error) {
-    console.error('Error fetching week schedule:', error);
-    throw error;
+    console.error("SportsDB API Error:", error);
+    return null;
   }
+}
+
+// 🏈 Fetch full NFL Season Schedule (League ID 4391 = NFL)
+export const fetchNFLSchedule = async (season = "2024-2025") => {
+  const data = await fetchSportsDB(`/schedule/league/4391/${season}`);
+  return data?.events || [];
 };
 
+// 🗓 Fetch a Specific Week’s Schedule
+export const fetchNFLWeekSchedule = async (week, season = "2024-2025") => {
+  const allGames = await fetchNFLSchedule(season);
+  const weekGames = allGames.filter((g) => parseInt(g.intRound) === parseInt(week));
+
+  return weekGames.map((game) => ({
+    id: game.idEvent,
+    homeTeam: game.strHomeTeam,
+    awayTeam: game.strAwayTeam,
+    kickoff: game.dateEvent + " " + game.strTimeLocal,
+    timestamp: new Date(game.dateEvent + "T" + game.strTimeLocal).getTime(),
+    homeScore: game.intHomeScore,
+    awayScore: game.intAwayScore,
+    winner:
+      game.intHomeScore && game.intAwayScore
+        ? parseInt(game.intHomeScore) > parseInt(game.intAwayScore)
+          ? "home"
+          : "away"
+        : null,
+  }));
+};
+
+// ⏱ Calculate Current NFL Week (2024 Season start)
 export const getCurrentNFLWeek = () => {
-  const seasonStart = new Date('2024-09-05');
+  const seasonStart = new Date("2024-09-05");
   const now = new Date();
-  const diffTime = Math.abs(now - seasonStart);
-  const diffWeeks = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 7));
-  return Math.min(Math.max(diffWeeks, 1), 18);
+  const diff = Math.floor((now - seasonStart) / (1000 * 60 * 60 * 24 * 7));
+  return Math.min(Math.max(diff + 1, 1), 18);
 };
