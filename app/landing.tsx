@@ -54,7 +54,7 @@ export default function LandingScreen() {
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
         <View style={styles.imageContainer}>
           <Image
-            source={{ uri: "https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/rs1fi3tmkrush16q4anmy" }}
+            source={{ uri: "https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/w54p9v3y1p8cuk3pa88yb" }}
             style={styles.image}
           />
         </View>
