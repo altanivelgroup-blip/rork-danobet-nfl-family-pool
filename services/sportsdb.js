@@ -21,7 +21,7 @@ async function fetchSportsDB(endpoint) {
   }
 }
 
-export async function fetchNFLSchedule(season = "2024-2025") {
+export async function fetchNFLSchedule(season = "2025-2026") {
   try {
     const data = await fetchSportsDB(`/eventsseason.php?id=4391&s=${season}`);
     console.log(`📋 Fetched ${data?.event?.length || 0} games for ${season}`);
@@ -32,7 +32,7 @@ export async function fetchNFLSchedule(season = "2024-2025") {
   }
 }
 
-export async function fetchNFLWeekSchedule(week, season = "2024-2025") {
+export async function fetchNFLWeekSchedule(week, season = "2025-2026") {
   try {
     const allGames = await fetchNFLSchedule(season);
     const weekGames = allGames.filter(
@@ -65,7 +65,7 @@ export async function fetchNFLWeekSchedule(week, season = "2024-2025") {
 }
 
 export function getCurrentNFLWeek() {
-  const seasonStart = new Date("2024-09-05");
+  const seasonStart = new Date("2025-09-04");
   const now = new Date();
   const diff = Math.floor((now - seasonStart) / (1000 * 60 * 60 * 24 * 7));
   const currentWeek = Math.min(Math.max(diff + 1, 1), 18);
