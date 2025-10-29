@@ -10,7 +10,7 @@ export const getGamesRoute = publicProcedure
   )
   .query(async ({ input }) => {
     console.log(`🏈 Fetching games for week ${input.week}`);
-    const games = await fetchNFLWeekSchedule(input.week, "2025-2026");
+    const games = await fetchNFLWeekSchedule(input.week, "2024");
     return games;
   });
 
