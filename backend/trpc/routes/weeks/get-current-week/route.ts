@@ -1,11 +1,9 @@
 import { publicProcedure } from "@/backend/trpc/create-context";
+import { getCurrentNFLWeek } from "@/services/sportsdb";
 
 export const getCurrentWeekRoute = publicProcedure.query(() => {
-  const now = new Date();
-  const seasonStart = new Date("2024-09-05");
-  const diffTime = Math.abs(now.getTime() - seasonStart.getTime());
-  const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
-  const currentWeek = Math.min(Math.max(diffWeeks + 1, 1), 18);
+  const seasonStart = new Date("2025-09-04");
+  const currentWeek = getCurrentNFLWeek();
 
   const weekStart = new Date(seasonStart);
   weekStart.setDate(weekStart.getDate() + (currentWeek - 1) * 7);
