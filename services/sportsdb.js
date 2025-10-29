@@ -6,19 +6,16 @@ const BASE_URL = "https://www.thesportsdb.com/api/v2/json";
 const API_KEY = "219986";
 const PROXY = "https://corsproxy.io/?"; // lets Rork fetch with headers
 
-// ---- helper to call the API ----
 async function fetchSportsDB(endpoint) {
   const target = `${BASE_URL}${endpoint}`;
-
-  // 🧠 use a proxy server that forwards your header
-  const proxiedUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(target)}`;
+  const proxiedUrl = `https://api.allorigins.garden/raw?url=${encodeURIComponent(target)}`;
 
   try {
     const response = await fetch(proxiedUrl, {
       method: "GET",
       headers: {
         "X-API-KEY": API_KEY,
-        Accept: "application/json",
+        "Accept": "application/json",
       },
     });
 
