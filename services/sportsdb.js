@@ -9,7 +9,9 @@ const PROXY = "https://corsproxy.io/?"; // lets Rork fetch with headers
 // ---- helper to call the API ----
 async function fetchSportsDB(endpoint) {
   const target = `${BASE_URL}${endpoint}`;
-  const proxiedUrl = `${PROXY}${encodeURIComponent(target)}`;
+
+  // 🧠 use a proxy server that forwards your header
+  const proxiedUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(target)}`;
 
   try {
     const response = await fetch(proxiedUrl, {
@@ -24,13 +26,14 @@ async function fetchSportsDB(endpoint) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
     const data = await response.json();
-    console.log("✅ API Connected:", data);
+    console.log("✅ API Connected through proxy:", data);
     return data;
   } catch (error) {
     console.error("❌ SportsDB API Error:", error);
     return null;
   }
 }
+
 
 // ---- get the full season schedule ----
 export async function fetchNFLSchedule(season = "2025-2026") {
