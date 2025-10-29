@@ -17,7 +17,7 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="picks"
         options={{
           title: "Picks",
           tabBarIcon: ({ color }) => <Trophy color={color} size={24} />,
