@@ -12,6 +12,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { trpc } from "@/lib/trpc";
 import { ChevronRight, Trophy } from "lucide-react-native";
 import WinnerCelebration from "@/components/WinnerCelebration";
+import {
+  fetchWeekGames,
+  getCurrentNFLWeek,
+} from "@/services/espnClient";
 
 const FAMILY_MEMBERS = [
   { id: "1", name: "Grandma", emoji: "👵" },
@@ -54,19 +58,40 @@ export default function PicksScreen() {
     setPicks({});
   }, [selectedMember]);
 
+  // Week comes from the backend when reachable, but we always compute it
+  // locally too so games load even if the backend is down.
   const weekQuery = trpc.weeks.getCurrent.useQuery();
+  const localWeek = getCurrentNFLWeek();
+  const week = weekQuery.data?.week ?? localWeek;
+
   const gamesQuery = trpc.games.getGames.useQuery(
-    { week: weekQuery.data?.week || 1 },
-    { enabled: !!weekQuery.data }
+    { week },
+    { retry: 1 }
   );
 
   const picksQuery = trpc.picks.get.useQuery(
     {
       userId: selectedMember,
-      week: weekQuery.data?.week || 1,
+      week,
     },
-    { enabled: !!weekQuery.data }
+    { retry: 1 }
   );
+
+  // Direct-from-ESPN fallback: if the backend fails or returns nothing,
+  // fetch the same games straight from ESPN so the slate always shows.
+  const [directGames, setDirectGames] = useState<Game[]>([]);
+  React.useEffect(() => {
+    if (gamesQuery.data && gamesQuery.data.length > 0) return;
+    let cancelled = false;
+    fetchWeekGames(week)
+      .then((g) => {
+        if (!cancelled && g.length > 0) setDirectGames(g);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [week, gamesQuery.data]);
 
   // Merge saved picks (already locked in) with the member's current session picks
   const savedPicks = (picksQuery.data?.picks ?? {}) as Record<
@@ -78,7 +103,10 @@ export default function PicksScreen() {
     ...picks,
   };
 
-  const games: Game[] = gamesQuery.data ?? [];
+  const games: Game[] =
+    gamesQuery.data && gamesQuery.data.length > 0
+      ? gamesQuery.data
+      : directGames;
   // Only games that haven't kicked off can still be picked
   const pickableGames = games.filter((g) => !isGameStarted(g.kickoff));
   const lockedInCount = pickableGames.filter((g) => mergedPicks[g.id]).length;
@@ -89,7 +117,13 @@ export default function PicksScreen() {
       picksQuery.refetch();
       Alert.alert(
         "✅ Picks Submitted!",
-        `Your picks for Week ${weekQuery.data?.week} are locked in!`
+        `Your picks for Week ${week} are locked in!`
+      );
+    },
+    onError: () => {
+      Alert.alert(
+        "⚠️ Couldn't Submit",
+        "The pick server isn't responding right now. Your picks are kept on this screen — try again in a minute."
       );
     },
   });
@@ -111,7 +145,7 @@ export default function PicksScreen() {
 
     submitPicksMutation.mutate({
       userId: selectedMember,
-      week: weekQuery.data?.week || 1,
+      week,
       picks: mergedPicks,
     });
   };
@@ -127,8 +161,10 @@ export default function PicksScreen() {
       <View style={[styles.header, { paddingTop: insets.top + 24 }]}>
         <Text style={styles.headerText}>🏈 Make Your Picks</Text>
         <Text style={styles.subHeader}>
-          Week {weekQuery.data?.week || "..."} • {weekQuery.data?.startDate} -{" "}
-          {weekQuery.data?.endDate}
+          Week {week}
+          {weekQuery.data?.startDate
+            ? ` • ${weekQuery.data.startDate} - ${weekQuery.data.endDate}`
+            : ""}
         </Text>
         <TouchableOpacity
           style={styles.demoButton}
