@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { trpc } from "@/lib/trpc";
-import { ChevronRight, Lock, Trophy } from "lucide-react-native";
+import { ChevronRight, Trophy } from "lucide-react-native";
 import WinnerCelebration from "@/components/WinnerCelebration";
 
 const FAMILY_MEMBERS = [
@@ -26,6 +26,8 @@ interface Game {
   id: string;
   homeTeam: string;
   awayTeam: string;
+  homeTeamAbbr: string;
+  awayTeamAbbr: string;
   homeTeamLogo: string;
   awayTeamLogo: string;
   homeTeamRecord: string;
@@ -34,9 +36,13 @@ interface Game {
   awayScore: string;
   kickoff: string;
   status: string;
+  statusDetail: string;
   completed: boolean;
   winner: "home" | "away" | null;
 }
+
+/** A game is locked once its kickoff time has passed. */
+const isGameStarted = (kickoff: string) => new Date() >= new Date(kickoff);
 
 export default function PicksScreen() {
   const insets = useSafeAreaInsets();
@@ -62,6 +68,21 @@ export default function PicksScreen() {
     { enabled: !!weekQuery.data }
   );
 
+  // Merge saved picks (already locked in) with the member's current session picks
+  const savedPicks = (picksQuery.data?.picks ?? {}) as Record<
+    string,
+    "home" | "away"
+  >;
+  const mergedPicks: Record<string, "home" | "away"> = {
+    ...savedPicks,
+    ...picks,
+  };
+
+  const games: Game[] = gamesQuery.data ?? [];
+  // Only games that haven't kicked off can still be picked
+  const pickableGames = games.filter((g) => !isGameStarted(g.kickoff));
+  const lockedInCount = pickableGames.filter((g) => mergedPicks[g.id]).length;
+
   const submitPicksMutation = trpc.picks.submit.useMutation({
     onSuccess: () => {
       setPicks({});
@@ -73,15 +94,17 @@ export default function PicksScreen() {
     },
   });
 
-  const handlePickTeam = (gameId: string, pick: "home" | "away") => {
-    setPicks((prev) => ({ ...prev, [gameId]: pick }));
+  const handlePickTeam = (game: Game, pick: "home" | "away") => {
+    if (isGameStarted(game.kickoff)) return;
+    setPicks((prev) => ({ ...prev, [game.id]: pick }));
   };
 
   const handleSubmitPicks = () => {
-    if (Object.keys(picks).length < (gamesQuery.data?.length || 0)) {
+    const missing = pickableGames.filter((g) => !mergedPicks[g.id]);
+    if (missing.length > 0) {
       Alert.alert(
         "⚠️ Incomplete",
-        "Please pick a winner for all games before submitting!"
+        "Please pick a winner for all remaining games before submitting!"
       );
       return;
     }
@@ -89,18 +112,9 @@ export default function PicksScreen() {
     submitPicksMutation.mutate({
       userId: selectedMember,
       week: weekQuery.data?.week || 1,
-      picks,
+      picks: mergedPicks,
     });
   };
-
-  const isPickingLocked = () => {
-    const now = new Date();
-    const firstGameTime = gamesQuery.data?.[0]?.kickoff;
-    if (!firstGameTime) return false;
-    return now >= new Date(firstGameTime);
-  };
-
-  const locked = isPickingLocked();
 
   return (
     <View style={styles.container}>
@@ -126,7 +140,9 @@ export default function PicksScreen() {
       </View>
 
       <View style={styles.memberSelector}>
-        <Text style={styles.selectorLabel}>Pick for:</Text>
+        <Text style={styles.selectorLabel}>
+          Pick for: {lockedInCount} of {pickableGames.length} locked in
+        </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {FAMILY_MEMBERS.map((member) => (
             <TouchableOpacity
@@ -151,80 +167,111 @@ export default function PicksScreen() {
         </ScrollView>
       </View>
 
-      {locked ? (
-        <View style={styles.lockedContainer}>
-          <Lock size={48} color="#FC4C02" />
-          <Text style={styles.lockedText}>Picks are locked!</Text>
-          <Text style={styles.lockedSubtext}>
-            Games have started. Check back Tuesday for results!
-          </Text>
-        </View>
-      ) : (
-        <ScrollView style={styles.gamesContainer}>
-          {gamesQuery.data?.map((game: Game) => {
-            const selectedPick = picks[game.id];
-            const gameTime = new Date(game.kickoff).toLocaleString("en-US", {
-              weekday: "short",
-              month: "short",
-              day: "numeric",
-              hour: "numeric",
-              minute: "2-digit",
-            });
+      <ScrollView style={styles.gamesContainer}>
+        {games.map((game) => {
+          const selectedPick = mergedPicks[game.id];
+          const started = isGameStarted(game.kickoff);
+          const gameTime = new Date(game.kickoff).toLocaleString("en-US", {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+          });
+          const isFinal = game.completed;
+          const isLive = started && !isFinal;
+          const badgeText = isFinal
+            ? "FINAL"
+            : isLive && game.statusDetail
+              ? game.statusDetail.toUpperCase()
+              : null;
+          const awayWinner = isFinal && game.winner === "away";
+          const homeWinner = isFinal && game.winner === "home";
 
-            return (
-              <View key={game.id} style={styles.gameCard}>
+          return (
+            <View key={game.id} style={styles.gameCard}>
+              <View style={styles.gameTimeRow}>
                 <Text style={styles.gameTime}>{gameTime}</Text>
-                <View style={styles.matchup}>
-                  <TouchableOpacity
+                {badgeText && (
+                  <View
                     style={[
-                      styles.teamButton,
-                      selectedPick === "away" && styles.teamButtonSelected,
+                      styles.statusBadge,
+                      isLive && styles.statusBadgeLive,
                     ]}
-                    onPress={() => handlePickTeam(game.id, "away")}
                   >
-                    <Image
-                      source={{ uri: game.awayTeamLogo }}
-                      style={styles.teamLogo}
-                    />
-                    <Text style={styles.teamName}>{game.awayTeam}</Text>
-                    <Text style={styles.teamRecord}>{game.awayTeamRecord}</Text>
-                    {selectedPick === "away" && (
-                      <View style={styles.checkmark}>
-                        <Text style={styles.checkmarkText}>✓</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-
-                  <Text style={styles.vsText}>@</Text>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.teamButton,
-                      selectedPick === "home" && styles.teamButtonSelected,
-                    ]}
-                    onPress={() => handlePickTeam(game.id, "home")}
-                  >
-                    <Image
-                      source={{ uri: game.homeTeamLogo }}
-                      style={styles.teamLogo}
-                    />
-                    <Text style={styles.teamName}>{game.homeTeam}</Text>
-                    <Text style={styles.teamRecord}>{game.homeTeamRecord}</Text>
-                    {selectedPick === "home" && (
-                      <View style={styles.checkmark}>
-                        <Text style={styles.checkmarkText}>✓</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                </View>
+                    <Text style={styles.statusBadgeText}>{badgeText}</Text>
+                  </View>
+                )}
               </View>
-            );
-          })}
+              <View style={styles.matchup}>
+                <TouchableOpacity
+                  style={[
+                    styles.teamButton,
+                    selectedPick === "away" && styles.teamButtonSelected,
+                    awayWinner && styles.teamButtonWinner,
+                  ]}
+                  onPress={() => handlePickTeam(game, "away")}
+                  disabled={started}
+                >
+                  <Image
+                    source={{ uri: game.awayTeamLogo }}
+                    style={styles.teamLogo}
+                  />
+                  <Text style={styles.teamAbbr}>
+                    {game.awayTeamAbbr || game.awayTeam}
+                  </Text>
+                  <Text style={styles.teamRecord}>{game.awayTeamRecord}</Text>
+                  {started && !!game.awayScore && (
+                    <Text style={styles.teamScore}>{game.awayScore}</Text>
+                  )}
+                  {selectedPick === "away" && !started && (
+                    <View style={styles.checkmark}>
+                      <Text style={styles.checkmarkText}>✓</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
 
+                <Text style={styles.vsText}>@</Text>
+
+                <TouchableOpacity
+                  style={[
+                    styles.teamButton,
+                    selectedPick === "home" && styles.teamButtonSelected,
+                    homeWinner && styles.teamButtonWinner,
+                  ]}
+                  onPress={() => handlePickTeam(game, "home")}
+                  disabled={started}
+                >
+                  <Image
+                    source={{ uri: game.homeTeamLogo }}
+                    style={styles.teamLogo}
+                  />
+                  <Text style={styles.teamAbbr}>
+                    {game.homeTeamAbbr || game.homeTeam}
+                  </Text>
+                  <View style={styles.homeBadge}>
+                    <Text style={styles.homeBadgeText}>HOME</Text>
+                  </View>
+                  <Text style={styles.teamRecord}>{game.homeTeamRecord}</Text>
+                  {started && !!game.homeScore && (
+                    <Text style={styles.teamScore}>{game.homeScore}</Text>
+                  )}
+                  {selectedPick === "home" && !started && (
+                    <View style={styles.checkmark}>
+                      <Text style={styles.checkmarkText}>✓</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          );
+        })}
+
+        {pickableGames.length > 0 && (
           <TouchableOpacity
             style={[
               styles.submitButton,
-              Object.keys(picks).length < (gamesQuery.data?.length || 0) &&
+              lockedInCount < pickableGames.length &&
                 styles.submitButtonDisabled,
             ]}
             onPress={handleSubmitPicks}
@@ -237,8 +284,14 @@ export default function PicksScreen() {
             </Text>
             <ChevronRight size={20} color="#FFFFFF" />
           </TouchableOpacity>
-        </ScrollView>
-      )}
+        )}
+
+        {games.length === 0 && (
+          <Text style={styles.emptyText}>
+            No games scheduled yet. Check back soon!
+          </Text>
+        )}
+      </ScrollView>
     </View>
   );
 }
@@ -317,12 +370,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#002d54",
   },
+  gameTimeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 14,
+  },
   gameTime: {
     fontSize: 13,
     color: "#E1E8ED",
-    marginBottom: 14,
-    textAlign: "center",
     fontWeight: "500" as const,
+  },
+  statusBadge: {
+    backgroundColor: "#4b5563",
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  statusBadgeLive: {
+    backgroundColor: "#DC2626",
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: "700" as const,
+    color: "#FFFFFF",
   },
   matchup: {
     flexDirection: "row",
@@ -343,22 +415,46 @@ const styles = StyleSheet.create({
     borderColor: "#10b981",
     backgroundColor: "#00447a",
   },
+  teamButtonWinner: {
+    backgroundColor: "#1E7E34",
+    borderColor: "#2EA043",
+  },
   teamLogo: {
     width: 56,
     height: 56,
     marginBottom: 10,
   },
-  teamName: {
-    fontSize: 13,
-    fontWeight: "600" as const,
+  teamAbbr: {
+    fontSize: 15,
+    fontWeight: "700" as const,
     color: "#FFFFFF",
     textAlign: "center",
     marginBottom: 4,
+  },
+  homeBadge: {
+    backgroundColor: "#FC4C02",
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginBottom: 4,
+  },
+  homeBadgeText: {
+    fontSize: 9,
+    fontWeight: "700" as const,
+    color: "#FFFFFF",
+    letterSpacing: 0.5,
   },
   teamRecord: {
     fontSize: 12,
     fontWeight: "500" as const,
     color: "#9CA3AF",
+    textAlign: "center",
+    marginBottom: 6,
+  },
+  teamScore: {
+    fontSize: 28,
+    fontWeight: "700" as const,
+    color: "#FFFFFF",
     textAlign: "center",
   },
   checkmark: {
@@ -403,23 +499,11 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     marginRight: 8,
   },
-  lockedContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 40,
-  },
-  lockedText: {
-    fontSize: 20,
-    fontWeight: "700" as const,
-    color: "#FFFFFF",
-    marginTop: 16,
-  },
-  lockedSubtext: {
-    fontSize: 14,
+  emptyText: {
+    fontSize: 15,
     color: "#E1E8ED",
-    marginTop: 8,
     textAlign: "center",
+    paddingVertical: 40,
   },
   demoButton: {
     flexDirection: "row",

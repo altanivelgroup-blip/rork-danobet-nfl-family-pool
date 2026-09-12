@@ -49,6 +49,8 @@ export async function fetchNFLWeekSchedule(week, season = "2026") {
         id: event.id,
         homeTeam: homeTeam.team.displayName,
         awayTeam: awayTeam.team.displayName,
+        homeTeamAbbr: homeTeam.team.abbreviation || "",
+        awayTeamAbbr: awayTeam.team.abbreviation || "",
         homeTeamLogo: homeTeam.team.logo,
         awayTeamLogo: awayTeam.team.logo,
         homeTeamRecord: homeTeam.records?.[0]?.summary || "0-0",
@@ -59,6 +61,7 @@ export async function fetchNFLWeekSchedule(week, season = "2026") {
         week: week.toString(),
         venue: competition.venue?.fullName || "TBD",
         status: competition.status.type.description,
+        statusDetail: competition.status.type.shortDetail || "",
         completed: competition.status.type.completed,
         winner: competition.status.type.completed 
           ? (parseInt(homeTeam.score) > parseInt(awayTeam.score) ? "home" : "away")
