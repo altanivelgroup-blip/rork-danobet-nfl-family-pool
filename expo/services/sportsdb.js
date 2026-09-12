@@ -1,4 +1,6 @@
-const ESPN_API = "https://site.api.espn.com/apis/site/v2/sports/football/nfl";
+// site.web.api.espn.com is used instead of site.api.espn.com because the
+// latter blocks server-side fetch requests with HTTP 403 bot protection.
+const ESPN_API = "https://site.web.api.espn.com/apis/site/v2/sports/football/nfl";
 
 async function fetchESPN(endpoint) {
   const url = `${ESPN_API}${endpoint}`;
