@@ -3,9 +3,9 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "bunx rork start -p ge4tb5ipbgmk2z7tqwqet --tunnel",
-    "start-web": "bunx rork start -p ge4tb5ipbgmk2z7tqwqet --web --tunnel",
-    "start-web-dev": "DEBUG=expo* bunx rork start -p ge4tb5ipbgmk2z7tqwqet --web --tunnel",
+    "start": "bunx rork start -p ge4tb5ipbgmk2z7tqwqet",
+    "start-web": "bunx rork start -p ge4tb5ipbgmk2z7tqwqet --web",
+    "start-web-dev": "DEBUG=expo* bunx rork start -p ge4tb5ipbgmk2z7tqwqet --web",
     "lint": "expo lint",
     "build:web": "bunx rork build --web"
   },
@@ -15,6 +15,7 @@
     "@hono/trpc-server": "^0.4.0",
     "@nkzw/create-context-hook": "^1.1.0",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@rork-ai/toolkit-sdk": "0.3.0",
     "@stardazed/streams-text-encoding": "^1.0.2",
     "@tanstack/eslint-plugin-query": "^5.91.2",
     "@tanstack/react-query": "^5.90.5",
@@ -41,7 +42,6 @@
     "firebase": "^12.4.0",
     "hono": "^4.10.3",
     "lucide-react-native": "^0.475.0",
-    "nativewind": "^4.1.23",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",
@@ -56,7 +56,6 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
-    "@expo/ngrok": "^4.1.0",
     "@types/react": "~19.1.10",
     "eslint": "9.31.0",
     "eslint-config-expo": "9.2.0",
@@ -64,4 +63,3 @@
   },
   "private": true
 }
-

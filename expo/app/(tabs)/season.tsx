@@ -24,7 +24,7 @@ export default function SeasonTrackerScreen() {
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 24 }]}>
         <Text style={styles.headerText}>📊 Season Tracker</Text>
-        <Text style={styles.subHeader}>2025-2026 NFL Season</Text>
+        <Text style={styles.subHeader}>2026-2027 NFL Season</Text>
       </View>
 
       <ScrollView style={styles.content}>

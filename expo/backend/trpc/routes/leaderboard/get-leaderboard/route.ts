@@ -22,7 +22,7 @@ export const getLeaderboardRoute = publicProcedure
   .query(async ({ input }) => {
     const isUnlocked = true;
 
-    const games = await fetchNFLWeekSchedule(input.week, "2025-2026");
+    const games = await fetchNFLWeekSchedule(input.week, "2026");
     
     const leaderboard = FAMILY_MEMBERS.map((member) => {
       const pickKey = `${member.id}_${input.week}`;

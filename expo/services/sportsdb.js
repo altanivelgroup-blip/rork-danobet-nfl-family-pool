@@ -20,7 +20,7 @@ async function fetchESPN(endpoint) {
   }
 }
 
-export async function fetchNFLSchedule(season = "2025") {
+export async function fetchNFLSchedule(season = "2026") {
   try {
     const data = await fetchESPN(`/scoreboard?limit=1000&dates=${season}`);
     console.log(`📋 Fetched ${data?.events?.length || 0} games for ${season}`);
@@ -31,7 +31,7 @@ export async function fetchNFLSchedule(season = "2025") {
   }
 }
 
-export async function fetchNFLWeekSchedule(week, season = "2025") {
+export async function fetchNFLWeekSchedule(week, season = "2026") {
   try {
     const data = await fetchESPN(`/scoreboard?seasontype=2&week=${week}`);
     const games = data?.events || [];
@@ -70,7 +70,7 @@ export async function fetchNFLWeekSchedule(week, season = "2025") {
 }
 
 export function getCurrentNFLWeek() {
-  const seasonStart = new Date("2025-09-05");
+  const seasonStart = new Date("2026-09-10");
   const now = new Date();
   
   const dayOfWeek = now.getDay();

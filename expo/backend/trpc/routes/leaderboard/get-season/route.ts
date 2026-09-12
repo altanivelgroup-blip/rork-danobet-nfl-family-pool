@@ -21,7 +21,7 @@ export const getSeasonRoute = publicProcedure.query(async () => {
 
       for (let week = 1; week <= MAX_WEEKS; week++) {
         try {
-          const games = await fetchNFLWeekSchedule(week, "2025-2026");
+          const games = await fetchNFLWeekSchedule(week, "2026");
           const pickKey = `${member.id}_${week}`;
           const userPicks = picksStore.get(pickKey);
 

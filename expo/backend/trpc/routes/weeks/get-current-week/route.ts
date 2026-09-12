@@ -2,7 +2,7 @@ import { publicProcedure } from "@/backend/trpc/create-context";
 import { getCurrentNFLWeek } from "@/services/sportsdb";
 
 export const getCurrentWeekRoute = publicProcedure.query(() => {
-  const seasonStart = new Date("2025-09-05");
+  const seasonStart = new Date("2026-09-10");
   const currentWeek = getCurrentNFLWeek();
 
   const weekStart = new Date(seasonStart);
