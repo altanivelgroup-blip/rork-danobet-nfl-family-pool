@@ -16,6 +16,11 @@ import {
   fetchWeekGames,
   getCurrentNFLWeek,
 } from "@/services/espnClient";
+import {
+  loadPicks,
+  savePicks,
+  type GamePick,
+} from "@/services/seasonTracker";
 
 const FAMILY_MEMBERS = [
   { id: "1", name: "Grandma", emoji: "👵" },
@@ -98,8 +103,24 @@ export default function PicksScreen() {
     string,
     "home" | "away"
   >;
+
+  // Permanent fallback: if the pick server is unreachable, load this member's
+  // locked-in picks straight from Firebase so nothing is ever lost.
+  const [storedPicks, setStoredPicks] = useState<Record<string, GamePick>>({});
+  React.useEffect(() => {
+    let cancelled = false;
+    setStoredPicks({});
+    if (picksQuery.data) return;
+    loadPicks(selectedMember, week).then((p) => {
+      if (!cancelled && p) setStoredPicks(p);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedMember, week, picksQuery.data]);
   const mergedPicks: Record<string, "home" | "away"> = {
     ...savedPicks,
+    ...storedPicks,
     ...picks,
   };
 
@@ -120,11 +141,23 @@ export default function PicksScreen() {
         `Your picks for Week ${week} are locked in!`
       );
     },
-    onError: () => {
-      Alert.alert(
-        "⚠️ Couldn't Submit",
-        "The pick server isn't responding right now. Your picks are kept on this screen — try again in a minute."
-      );
+    // Picks are also saved permanently to Firebase; if the pick server is
+    // down but Firebase saved them, still confirm success to the family.
+    onError: async () => {
+      try {
+        await savePicks(selectedMember, week, mergedPicks);
+        setPicks({});
+        setStoredPicks(mergedPicks);
+        Alert.alert(
+          "✅ Picks Submitted!",
+          `Your picks for Week ${week} are locked in!`
+        );
+      } catch {
+        Alert.alert(
+          "⚠️ Couldn't Submit",
+          "The pick server isn't responding right now. Your picks are kept on this screen — try again in a minute."
+        );
+      }
     },
   });
 
@@ -148,6 +181,8 @@ export default function PicksScreen() {
       week,
       picks: mergedPicks,
     });
+    // Permanent copy in Firebase — works even when the pick server is down.
+    savePicks(selectedMember, week, mergedPicks).catch(() => {});
   };
 
   return (

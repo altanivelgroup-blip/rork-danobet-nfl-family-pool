@@ -10,15 +10,52 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { trpc } from "@/lib/trpc";
 import { Calendar, Trophy } from "lucide-react-native";
 import GrandmaSuperbowl from "@/components/GrandmaSuperbowl";
+import {
+  getSeasonStandings,
+  getWeekResultsUpTo,
+  type Standing,
+  type WeekResult,
+} from "@/services/seasonTracker";
+import { getCurrentNFLWeek } from "@/services/espnClient";
 
 export default function SeasonTrackerScreen() {
   const insets = useSafeAreaInsets();
   const [showGrandmaModal, setShowGrandmaModal] = useState(false);
   const weekQuery = trpc.weeks.getCurrent.useQuery();
   const seasonStatsQuery = trpc.leaderboard.getSeason.useQuery();
+  const week = weekQuery.data?.week ?? getCurrentNFLWeek();
 
-  const isSuperbowl = (weekQuery.data?.week || 0) >= 18;
-  const seasonWinner = seasonStatsQuery.data?.[0];
+  // Season standings accumulated from permanently stored weekly results.
+  const [standings, setStandings] = useState<Standing[]>([]);
+  const [weekResults, setWeekResults] = useState<WeekResult[]>([]);
+  React.useEffect(() => {
+    let cancelled = false;
+    getSeasonStandings(week)
+      .then((s) => {
+        if (!cancelled) setStandings(s);
+      })
+      .catch(() => {});
+    getWeekResultsUpTo(week)
+      .then((rs) => {
+        if (!cancelled) setWeekResults(rs);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [week]);
+
+  const usingFirebase = standings.some((s) => s.weeklyWins > 0 || s.totalPoints > 0);
+  const isSuperbowl = week >= 18;
+  const seasonWinner = usingFirebase
+    ? standings[0]
+      ? {
+          name: standings[0].name,
+          emoji: standings[0].emoji,
+          totalWins: standings[0].weeklyWins,
+        }
+      : undefined
+    : seasonStatsQuery.data?.[0];
 
   return (
     <View style={styles.container}>
@@ -31,51 +68,54 @@ export default function SeasonTrackerScreen() {
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             <Calendar size={32} color="#FC4C02" />
-            <Text style={styles.statValue}>{weekQuery.data?.week || 1}</Text>
+            <Text style={styles.statValue}>{week}</Text>
             <Text style={styles.statLabel}>Current Week</Text>
           </View>
           <View style={styles.statCard}>
             <Trophy size={32} color="#FFD700" />
-            <Text style={styles.statValue}>
-              {18 - (weekQuery.data?.week || 1)}
-            </Text>
+            <Text style={styles.statValue}>{18 - week}</Text>
             <Text style={styles.statLabel}>Weeks Left</Text>
           </View>
         </View>
 
         <Text style={styles.sectionTitle}>Overall Standings</Text>
 
-        {seasonStatsQuery.data?.map((player, index) => (
-          <View
-            key={player.uid}
-            style={[
-              styles.playerCard,
-              index === 0 && styles.playerCardFirst,
-            ]}
-          >
-            <View style={styles.playerLeft}>
-              <Text style={styles.playerRank}>
-                {index === 0 ? "👑" : `#${index + 1}`}
-              </Text>
-              <View>
-                <Text style={styles.playerName}>{player.name}</Text>
-                <Text style={styles.playerEmoji}>{player.emoji}</Text>
-              </View>
-            </View>
-            <View style={styles.playerStats}>
-              <View style={styles.statBadge}>
-                <Text style={styles.statBadgeLabel}>Total Wins</Text>
-                <Text style={styles.statBadgeValue}>{player.totalWins}</Text>
-              </View>
-              <View style={styles.statBadge}>
-                <Text style={styles.statBadgeLabel}>Win Rate</Text>
-                <Text style={styles.statBadgeValue}>
-                  {player.winRate}%
+        {(usingFirebase ? standings : seasonStatsQuery.data ?? []).map(
+          (player, index) => {
+            const weeklyWins = "weeklyWins" in player ? player.weeklyWins : (player as { totalWins: number }).totalWins;
+            const totalPoints = "totalPoints" in player ? player.totalPoints : (player as { winRate: number }).winRate;
+            const pointsLabel = "totalPoints" in player ? "Season Pts" : "Win Rate";
+            return (
+            <View
+              key={player.uid}
+              style={[
+                styles.playerCard,
+                index === 0 && styles.playerCardFirst,
+              ]}
+            >
+              <View style={styles.playerLeft}>
+                <Text style={styles.playerRank}>
+                  {index === 0 ? "👑" : `#${index + 1}`}
                 </Text>
+                <View>
+                  <Text style={styles.playerName}>{player.name}</Text>
+                  <Text style={styles.playerEmoji}>{player.emoji}</Text>
+                </View>
+              </View>
+              <View style={styles.playerStats}>
+                <View style={styles.statBadge}>
+                  <Text style={styles.statBadgeLabel}>Weekly Wins</Text>
+                  <Text style={styles.statBadgeValue}>🏆 {weeklyWins}</Text>
+                </View>
+                <View style={styles.statBadge}>
+                  <Text style={styles.statBadgeLabel}>{pointsLabel}</Text>
+                  <Text style={styles.statBadgeValue}>{totalPoints}</Text>
+                </View>
               </View>
             </View>
-          </View>
-        ))}
+            );
+          }
+        )}
 
         {isSuperbowl && seasonWinner && (
           <>
@@ -103,17 +143,37 @@ export default function SeasonTrackerScreen() {
 
         <View style={styles.weekHistory}>
           <Text style={styles.sectionTitle}>Week by Week</Text>
-          {Array.from({ length: weekQuery.data?.week || 1 }, (_, i) => i + 1)
+          {Array.from({ length: week - 1 }, (_, i) => i + 1)
             .reverse()
-            .map((week) => (
-              <TouchableOpacity key={week} style={styles.weekCard}>
-                <View style={styles.weekLeft}>
-                  <Text style={styles.weekNumber}>Week {week}</Text>
-                  <Text style={styles.weekDate}>Completed</Text>
+            .map((wk) => {
+              const result = weekResults.find((r) => r.week === wk);
+              const winners = result?.hasWinner
+                ? result.results
+                    .filter((r) => r.isWinner)
+                    .map((r) => `${r.emoji} ${r.name}`)
+                    .join(" & ")
+                : null;
+              return (
+                <View key={wk} style={styles.weekCard}>
+                  <View style={styles.weekLeft}>
+                    <Text style={styles.weekNumber}>Week {wk}</Text>
+                    <Text style={styles.weekDate}>
+                      {winners
+                        ? `Winner: ${winners}`
+                        : result
+                          ? "No picks — wash for everyone"
+                          : "No results yet"}
+                    </Text>
+                  </View>
+                  {winners && <Text style={styles.weekArrow}>🏆</Text>}
                 </View>
-                <Text style={styles.weekArrow}>→</Text>
-              </TouchableOpacity>
-            ))}
+              );
+            })}
+          {weekResults.length === 0 && (
+            <Text style={styles.weekDate}>
+              No weeks completed yet — the race starts with the next final whistle!
+            </Text>
+          )}
         </View>
       </ScrollView>
     </View>
