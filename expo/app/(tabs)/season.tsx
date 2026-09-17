@@ -5,10 +5,11 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { trpc } from "@/lib/trpc";
-import { Calendar, Trophy } from "lucide-react-native";
+import { Calendar, Printer, Trophy } from "lucide-react-native";
 import GrandmaSuperbowl from "@/components/GrandmaSuperbowl";
 import {
   getSeasonStandings,
@@ -17,10 +18,12 @@ import {
   type WeekResult,
 } from "@/services/seasonTracker";
 import { getCurrentNFLWeek } from "@/services/espnClient";
+import { printSeasonReport } from "@/utils/seasonPrint";
 
 export default function SeasonTrackerScreen() {
   const insets = useSafeAreaInsets();
-  const [showGrandmaModal, setShowGrandmaModal] = useState(false);
+  const [showGrandmaModal, setShowGrandmaModal] = useState<boolean>(false);
+  const [isPrinting, setIsPrinting] = useState<boolean>(false);
   const weekQuery = trpc.weeks.getCurrent.useQuery();
   const seasonStatsQuery = trpc.leaderboard.getSeason.useQuery();
   const week = weekQuery.data?.week ?? getCurrentNFLWeek();
@@ -47,6 +50,21 @@ export default function SeasonTrackerScreen() {
 
   const usingFirebase = standings.some((s) => s.weeklyWins > 0 || s.totalPoints > 0);
   const isSuperbowl = week >= 18;
+  const handlePrint = async (): Promise<void> => {
+    if (isPrinting) return;
+    setIsPrinting(true);
+    try {
+      await printSeasonReport({ currentWeek: week, standings, weekResults });
+    } catch (error: unknown) {
+      const message = error instanceof Error
+        ? error.message
+        : "The report could not be opened. Please try again.";
+      Alert.alert("Unable to print", message);
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
   const seasonWinner = usingFirebase
     ? standings[0]
       ? {
@@ -142,7 +160,23 @@ export default function SeasonTrackerScreen() {
         )}
 
         <View style={styles.weekHistory}>
-          <Text style={styles.sectionTitle}>Week by Week</Text>
+          <View style={styles.weekHistoryHeader}>
+            <View style={styles.weekHistoryTitleGroup}>
+              <Text style={styles.sectionTitle}>Week by Week</Text>
+              <Text style={styles.printHint}>Print the full season or save it as a PDF</Text>
+            </View>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Print week-by-week season report"
+              activeOpacity={0.75}
+              disabled={isPrinting}
+              onPress={handlePrint}
+              style={[styles.printButton, isPrinting && styles.printButtonDisabled]}
+            >
+              <Printer size={17} color="#FFFFFF" />
+              <Text style={styles.printButtonText}>{isPrinting ? "Opening…" : "Print"}</Text>
+            </TouchableOpacity>
+          </View>
           {Array.from({ length: week - 1 }, (_, i) => i + 1)
             .reverse()
             .map((wk) => {
@@ -316,6 +350,40 @@ const styles = StyleSheet.create({
   },
   weekHistory: {
     marginTop: 24,
+    paddingBottom: 28,
+  },
+  weekHistoryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 12,
+  },
+  weekHistoryTitleGroup: {
+    flex: 1,
+  },
+  printHint: {
+    color: "#B8C7D9",
+    fontSize: 11,
+    marginTop: -8,
+  },
+  printButton: {
+    minHeight: 44,
+    paddingHorizontal: 14,
+    borderRadius: 22,
+    backgroundColor: "#FC4C02",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+  },
+  printButtonDisabled: {
+    opacity: 0.65,
+  },
+  printButtonText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700" as const,
   },
   weekCard: {
     backgroundColor: "#0b1220",

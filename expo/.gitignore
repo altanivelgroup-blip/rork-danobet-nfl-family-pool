@@ -42,3 +42,4 @@ android/
 core
 node_modules
 .expo
+.env*
