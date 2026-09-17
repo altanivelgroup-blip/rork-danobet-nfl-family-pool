@@ -10,8 +10,9 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { trpc } from "@/lib/trpc";
-import { ChevronRight, Trophy } from "lucide-react-native";
+import { ChevronRight, Printer, Trophy } from "lucide-react-native";
 import WinnerCelebration from "@/components/WinnerCelebration";
+import { printWeeklyGameSheet } from "@/utils/gameSheetPrint";
 import {
   fetchWeekGames,
   getCurrentNFLWeek,
@@ -49,7 +50,8 @@ export default function PicksScreen() {
   const insets = useSafeAreaInsets();
   const [selectedMember, setSelectedMember] = useState(FAMILY_MEMBERS[0].id);
   const [picks, setPicks] = useState<Record<string, "home" | "away">>({});
-  const [showCelebration, setShowCelebration] = useState(false);
+  const [showCelebration, setShowCelebration] = useState<boolean>(false);
+  const [isPrintingGames, setIsPrintingGames] = useState<boolean>(false);
 
   React.useEffect(() => {
     setPicks({});
@@ -123,6 +125,21 @@ export default function PicksScreen() {
   // Only games that haven't kicked off can still be picked
   const pickableGames = games.filter((g) => !isGameStarted(g.kickoff));
   const lockedInCount = pickableGames.filter((g) => mergedPicks[g.id]).length;
+
+  const handlePrintGames = async (): Promise<void> => {
+    if (isPrintingGames || games.length === 0) return;
+    setIsPrintingGames(true);
+    try {
+      await printWeeklyGameSheet({ week, games });
+    } catch (error: unknown) {
+      const message = error instanceof Error
+        ? error.message
+        : "The Week pick sheet could not be opened. Please try again.";
+      Alert.alert("Unable to print games", message);
+    } finally {
+      setIsPrintingGames(false);
+    }
+  };
 
   const submitPicksMutation = trpc.picks.submit.useMutation({
     onSuccess: () => {
@@ -199,6 +216,31 @@ export default function PicksScreen() {
         >
           <Trophy size={16} color="#FFD700" />
           <Text style={styles.demoButtonText}>Demo Winner Trophy</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.paperPickSection}>
+        <View style={styles.paperPickCopy}>
+          <Text style={styles.paperPickTitle}>Paper picks</Text>
+          <Text style={styles.paperPickDescription}>
+            Print Week {week} games with a checkbox beside every team.
+          </Text>
+        </View>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={`Print Week ${week} games paper pick sheet`}
+          activeOpacity={0.75}
+          disabled={isPrintingGames || games.length === 0}
+          onPress={handlePrintGames}
+          style={[
+            styles.printGamesButton,
+            (isPrintingGames || games.length === 0) && styles.printGamesButtonDisabled,
+          ]}
+        >
+          <Printer size={18} color="#FFFFFF" />
+          <Text style={styles.printGamesButtonText}>
+            {isPrintingGames ? "Opening…" : "Print Games"}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -381,6 +423,48 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     marginTop: 6,
     fontWeight: "500" as const,
+  },
+  paperPickSection: {
+    backgroundColor: "#0b1220",
+    borderBottomColor: "#1e3a5f",
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  paperPickCopy: {
+    flex: 1,
+  },
+  paperPickTitle: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "700" as const,
+  },
+  paperPickDescription: {
+    color: "#B8C7D9",
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  printGamesButton: {
+    minHeight: 44,
+    backgroundColor: "#FC4C02",
+    borderRadius: 22,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    paddingHorizontal: 14,
+  },
+  printGamesButtonDisabled: {
+    opacity: 0.5,
+  },
+  printGamesButtonText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700" as const,
   },
   memberSelector: {
     paddingVertical: 20,
