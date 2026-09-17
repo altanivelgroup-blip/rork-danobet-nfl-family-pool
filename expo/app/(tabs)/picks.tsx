@@ -17,19 +17,11 @@ import {
   getCurrentNFLWeek,
 } from "@/services/espnClient";
 import {
+  FAMILY_MEMBERS,
   loadPicks,
   savePicks,
   type GamePick,
 } from "@/services/seasonTracker";
-
-const FAMILY_MEMBERS = [
-  { id: "1", name: "Grandma", emoji: "👵" },
-  { id: "2", name: "Dave", emoji: "👨" },
-  { id: "3", name: "Grandpa", emoji: "👴" },
-  { id: "4", name: "John", emoji: "👨" },
-  { id: "5", name: "Nena", emoji: "👩" },
-  { id: "6", name: "Zaky", emoji: "🧑" },
-];
 
 interface Game {
   id: string;

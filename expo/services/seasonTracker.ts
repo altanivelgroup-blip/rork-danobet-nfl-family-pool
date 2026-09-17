@@ -32,6 +32,10 @@ export const FAMILY_MEMBERS: FamilyMember[] = [
   { id: "4", name: "John", emoji: "👨" },
   { id: "5", name: "Nena", emoji: "👩" },
   { id: "6", name: "Zaky", emoji: "🧑" },
+  { id: "7", name: "Robert", emoji: "🧑" },
+  { id: "8", name: "Rd", emoji: "🧑" },
+  { id: "9", name: "Dakota", emoji: "🧑" },
+  { id: "10", name: "Harley", emoji: "🧑" },
 ];
 
 export type GamePick = "home" | "away";
