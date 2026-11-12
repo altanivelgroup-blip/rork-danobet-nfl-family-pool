@@ -33,19 +33,14 @@ export interface EspnGame {
 
 /** Current NFL week of the 2026 season (week flips on Tuesday). */
 export function getCurrentNFLWeek(): number {
-  const seasonStart = new Date("2026-09-10");
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-
-  const adjustedDate = new Date(now);
-  if (dayOfWeek >= 2) {
-    adjustedDate.setDate(adjustedDate.getDate() + (7 - dayOfWeek + 2));
-  }
-
-  const diff = Math.floor(
-    (adjustedDate.getTime() - seasonStart.getTime()) /
-      (1000 * 60 * 60 * 24 * 7)
-  );
+  // Tuesday starts the next slate, never Thursday/Sunday while picks are locked.
+  const easternDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date());
+  const part = (type: string) => easternDate.find((value) => value.type === type)?.value ?? "";
+  const today = Date.UTC(Number(part("year")), Number(part("month")) - 1, Number(part("day")));
+  const firstTuesday = Date.UTC(2026, 8, 8);
+  const diff = Math.floor((today - firstTuesday) / (7 * 24 * 60 * 60 * 1000));
   return Math.min(Math.max(diff + 1, 1), 18);
 }
 

@@ -17,7 +17,8 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { db } from "@/config/firebase";
-import { fetchWeekGames, type EspnGame } from "@/services/espnClient";
+import { fetchWeekGames } from "@/services/espnClient";
+import { assertWeeklyPicksOpen } from "@/utils/weeklyPickDeadline";
 
 export interface FamilyMember {
   id: string;
@@ -78,6 +79,8 @@ export async function savePicks(
   week: number,
   picks: Record<string, GamePick>
 ): Promise<void> {
+  const games = await fetchWeekGames(week);
+  assertWeeklyPicksOpen(games, picks);
   await setDoc(picksDoc(userId, week), {
     userId,
     week,

@@ -1,3 +1,5 @@
+import { getCurrentNFLWeek as getClientNFLWeek } from "./espnClient";
+
 // site.web.api.espn.com is used instead of site.api.espn.com because the
 // latter blocks server-side fetch requests with HTTP 403 bot protection.
 const ESPN_API = "https://site.web.api.espn.com/apis/site/v2/sports/football/nfl";
@@ -75,18 +77,5 @@ export async function fetchNFLWeekSchedule(week, season = "2026") {
 }
 
 export function getCurrentNFLWeek() {
-  const seasonStart = new Date("2026-09-10");
-  const now = new Date();
-  
-  const dayOfWeek = now.getDay();
-  
-  let adjustedDate = new Date(now);
-  if (dayOfWeek >= 2) {
-    adjustedDate.setDate(adjustedDate.getDate() + (7 - dayOfWeek + 2));
-  }
-  
-  const diff = Math.floor((adjustedDate - seasonStart) / (1000 * 60 * 60 * 24 * 7));
-  const currentWeek = Math.min(Math.max(diff + 1, 1), 18);
-  console.log("📆 Current NFL Week:", currentWeek, "(Day of week:", dayOfWeek, ")");
-  return currentWeek;
+  return getClientNFLWeek();
 }

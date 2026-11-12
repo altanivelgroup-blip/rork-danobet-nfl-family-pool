@@ -13,6 +13,7 @@ import { trpc } from "@/lib/trpc";
 import { ChevronRight, Printer, Trophy } from "lucide-react-native";
 import WinnerCelebration from "@/components/WinnerCelebration";
 import { printWeeklyGameSheet } from "@/utils/gameSheetPrint";
+import { areWeeklyPicksLocked, getWeeklyPickDeadline, WEEK_LOCK_MESSAGE } from "@/utils/weeklyPickDeadline";
 import {
   fetchWeekGames,
   getCurrentNFLWeek,
@@ -52,16 +53,23 @@ export default function PicksScreen() {
   const [picks, setPicks] = useState<Record<string, "home" | "away">>({});
   const [showCelebration, setShowCelebration] = useState<boolean>(false);
   const [isPrintingGames, setIsPrintingGames] = useState<boolean>(false);
-
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   React.useEffect(() => {
-    setPicks({});
-  }, [selectedMember]);
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Week comes from the backend when reachable, but we always compute it
   // locally too so games load even if the backend is down.
   const weekQuery = trpc.weeks.getCurrent.useQuery();
   const localWeek = getCurrentNFLWeek();
-  const week = weekQuery.data?.week ?? localWeek;
+  const week = localWeek;
+  React.useEffect(() => {
+    // Discard drafts when their member/week changes; never carry them to another slate.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPicks({});
+  }, [selectedMember, week]);
 
   const gamesQuery = trpc.games.getGames.useQuery(
     { week },
@@ -79,6 +87,11 @@ export default function PicksScreen() {
   // Direct-from-ESPN fallback: if the backend fails or returns nothing,
   // fetch the same games straight from ESPN so the slate always shows.
   const [directGames, setDirectGames] = useState<Game[]>([]);
+  React.useEffect(() => {
+    // Do not expose the previous week's schedule while the new one loads.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDirectGames([]);
+  }, [week]);
   React.useEffect(() => {
     if (gamesQuery.data && gamesQuery.data.length > 0) return;
     let cancelled = false;
@@ -103,8 +116,9 @@ export default function PicksScreen() {
   const [storedPicks, setStoredPicks] = useState<Record<string, GamePick>>({});
   React.useEffect(() => {
     let cancelled = false;
+    // Clear the prior member's saved choices before loading this member.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setStoredPicks({});
-    if (picksQuery.data) return;
     loadPicks(selectedMember, week).then((p) => {
       if (!cancelled && p) setStoredPicks(p);
     });
@@ -122,9 +136,11 @@ export default function PicksScreen() {
     gamesQuery.data && gamesQuery.data.length > 0
       ? gamesQuery.data
       : directGames;
-  // Only games that haven't kicked off can still be picked
-  const pickableGames = games.filter((g) => !isGameStarted(g.kickoff));
-  const lockedInCount = pickableGames.filter((g) => mergedPicks[g.id]).length;
+  const weeklyLocked = areWeeklyPicksLocked(games, now);
+  const deadline = getWeeklyPickDeadline(games);
+  const pickableGames = weeklyLocked ? [] : games;
+  const lockedInCount = games.filter((g) => (weeklyLocked ? { ...savedPicks, ...storedPicks } : mergedPicks)[g.id]).length;
+  const displayedPicks = weeklyLocked ? { ...savedPicks, ...storedPicks } : mergedPicks;
 
   const handlePrintGames = async (): Promise<void> => {
     if (isPrintingGames || games.length === 0) return;
@@ -141,41 +157,19 @@ export default function PicksScreen() {
     }
   };
 
-  const submitPicksMutation = trpc.picks.submit.useMutation({
-    onSuccess: () => {
-      setPicks({});
-      picksQuery.refetch();
-      Alert.alert(
-        "✅ Picks Submitted!",
-        `Your picks for Week ${week} are locked in!`
-      );
-    },
-    // Picks are also saved permanently to Firebase; if the pick server is
-    // down but Firebase saved them, still confirm success to the family.
-    onError: async () => {
-      try {
-        await savePicks(selectedMember, week, mergedPicks);
-        setPicks({});
-        setStoredPicks(mergedPicks);
-        Alert.alert(
-          "✅ Picks Submitted!",
-          `Your picks for Week ${week} are locked in!`
-        );
-      } catch {
-        Alert.alert(
-          "⚠️ Couldn't Submit",
-          "The pick server isn't responding right now. Your picks are kept on this screen — try again in a minute."
-        );
-      }
-    },
-  });
+  const submitPicksMutation = trpc.picks.submit.useMutation();
 
   const handlePickTeam = (game: Game, pick: "home" | "away") => {
-    if (isGameStarted(game.kickoff)) return;
+    if (areWeeklyPicksLocked(games) || isSubmitting) return;
     setPicks((prev) => ({ ...prev, [game.id]: pick }));
   };
 
-  const handleSubmitPicks = () => {
+  const handleSubmitPicks = async () => {
+    if (isSubmitting) return;
+    if (areWeeklyPicksLocked(games)) {
+      Alert.alert("Weekly picks closed", WEEK_LOCK_MESSAGE);
+      return;
+    }
     const missing = pickableGames.filter((g) => !mergedPicks[g.id]);
     if (missing.length > 0) {
       Alert.alert(
@@ -185,13 +179,20 @@ export default function PicksScreen() {
       return;
     }
 
-    submitPicksMutation.mutate({
-      userId: selectedMember,
-      week,
-      picks: mergedPicks,
-    });
-    // Permanent copy in Firebase — works even when the pick server is down.
-    savePicks(selectedMember, week, mergedPicks).catch(() => {});
+    setIsSubmitting(true);
+    try {
+      // Permanent saving checks the full slate's deadline before writing.
+      await savePicks(selectedMember, week, mergedPicks);
+      setStoredPicks(mergedPicks);
+      setPicks({});
+      // Keep the legacy server copy, without depending on its availability.
+      submitPicksMutation.mutate({ userId: selectedMember, week, picks: mergedPicks });
+      Alert.alert("Picks saved", `Your Week ${week} picks are saved. Changes close at the weekly kickoff deadline.`);
+    } catch (error) {
+      Alert.alert("Couldn't submit picks", error instanceof Error ? error.message : "Please try again before the deadline.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -246,7 +247,7 @@ export default function PicksScreen() {
 
       <View style={styles.memberSelector}>
         <Text style={styles.selectorLabel}>
-          Pick for: {lockedInCount} of {pickableGames.length} locked in
+          Pick for: {lockedInCount} of {games.length} selected
         </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {FAMILY_MEMBERS.map((member) => (
@@ -272,9 +273,17 @@ export default function PicksScreen() {
         </ScrollView>
       </View>
 
+      <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+        <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 14 }}>
+          {games.length === 0 ? "Checking weekly deadline…" : weeklyLocked ? "Weekly picks closed — read only" : `All picks due: ${deadline === null ? "Checking…" : new Date(deadline).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" })}`}
+        </Text>
+        <Text style={{ color: "#E1E8ED", fontSize: 12, marginTop: 4 }}>
+          {weeklyLocked && games.length > 0 ? WEEK_LOCK_MESSAGE : "Submit every game before Thursday kickoff. The entire week locks at once; earlier games move the deadline earlier."}
+        </Text>
+      </View>
       <ScrollView style={styles.gamesContainer}>
         {games.map((game) => {
-          const selectedPick = mergedPicks[game.id];
+          const selectedPick = displayedPicks[game.id];
           const started = isGameStarted(game.kickoff);
           const gameTime = new Date(game.kickoff).toLocaleString("en-US", {
             weekday: "short",
@@ -316,7 +325,7 @@ export default function PicksScreen() {
                     awayWinner && styles.teamButtonWinner,
                   ]}
                   onPress={() => handlePickTeam(game, "away")}
-                  disabled={started}
+                  disabled={weeklyLocked || isSubmitting}
                 >
                   <Image
                     source={{ uri: game.awayTeamLogo }}
@@ -345,7 +354,7 @@ export default function PicksScreen() {
                     homeWinner && styles.teamButtonWinner,
                   ]}
                   onPress={() => handlePickTeam(game, "home")}
-                  disabled={started}
+                  disabled={weeklyLocked || isSubmitting}
                 >
                   <Image
                     source={{ uri: game.homeTeamLogo }}
@@ -380,10 +389,10 @@ export default function PicksScreen() {
                 styles.submitButtonDisabled,
             ]}
             onPress={handleSubmitPicks}
-            disabled={submitPicksMutation.isPending}
+            disabled={isSubmitting || weeklyLocked}
           >
             <Text style={styles.submitButtonText}>
-              {submitPicksMutation.isPending
+              {isSubmitting
                 ? "Submitting..."
                 : "🔒 Lock In My Picks"}
             </Text>

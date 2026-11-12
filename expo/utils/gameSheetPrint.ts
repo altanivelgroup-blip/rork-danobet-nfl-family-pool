@@ -104,7 +104,7 @@ export function createWeeklyGameSheetHtml(options: GameSheetPrintOptions): strin
     <div class="line">Date:</div>
   </div>
   ${rows || '<div class="empty">No games are currently available for this week.</div>'}
-  <div class="reminder">Return this sheet before the first selected game kicks off.</div>
+  <div class="reminder">All paper picks must be entered in the app before Thursday kickoff (or the week's first game if earlier). No late picks or changes after the weekly deadline.</div>
   <footer>This isn't just football. It's family.</footer>
 </body>
 </html>`;
