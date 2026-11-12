@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { trpc } from "@/lib/trpc";
-import { ChevronRight, Printer, Trophy } from "lucide-react-native";
+import { ChevronRight, LockKeyhole, Printer, Trophy } from "lucide-react-native";
 import WinnerCelebration from "@/components/WinnerCelebration";
 import { printWeeklyGameSheet } from "@/utils/gameSheetPrint";
 import { areWeeklyPicksLocked, getWeeklyPickDeadline, WEEK_LOCK_MESSAGE } from "@/utils/weeklyPickDeadline";
@@ -114,31 +114,37 @@ export default function PicksScreen() {
 
   // Keep submission state tied to its member/week, including while switching members.
   const submissionKey = `${selectedMember}_${week}`;
-  const [submission, setSubmission] = useState<{
-    key: string;
+  const [submissions, setSubmissions] = useState<Record<string, {
     status: "open" | "submitted" | "error";
     picks: Record<string, GamePick>;
-  } | null>(null);
+  }>>({});
+  const selectedMemberName = FAMILY_MEMBERS.find((member) => member.id === selectedMember)?.name ?? "Player";
   React.useEffect(() => {
     let cancelled = false;
     const unsubscribe = watchSubmittedPicks(selectedMember, week, (saved) => {
-      if (!cancelled) setSubmission({
-        key: submissionKey,
-        status: saved === null ? "open" : "submitted",
-        picks: saved ?? {},
+      if (!cancelled) setSubmissions((previous) => {
+        // Once confirmed, this name/week never reopens during this session.
+        if (previous[submissionKey]?.status === "submitted") return previous;
+        return {
+          ...previous,
+          [submissionKey]: {
+            status: saved === null ? "open" : "submitted",
+            picks: saved ?? {},
+          },
+        };
       });
     }, () => {
-      if (!cancelled) setSubmission((previous) =>
-        previous?.key === submissionKey && previous.status === "submitted"
+      if (!cancelled) setSubmissions((previous) =>
+        previous[submissionKey]?.status === "submitted"
           ? previous
-          : { key: submissionKey, status: "error", picks: {} });
+          : { ...previous, [submissionKey]: { status: "error", picks: {} } });
     });
     return () => {
       cancelled = true;
       unsubscribe();
     };
   }, [selectedMember, week, submissionKey]);
-  const currentSubmission = submission?.key === submissionKey ? submission : null;
+  const currentSubmission = submissions[submissionKey];
   const storedPicks = currentSubmission?.picks ?? {};
   const submitted = currentSubmission?.status === "submitted" || !!picksQuery.data;
   const checkingSubmission = !currentSubmission;
@@ -202,11 +208,14 @@ export default function PicksScreen() {
     try {
       // First-write-only saving also checks the full slate's deadline.
       await savePicks(selectedMember, week, mergedPicks);
-      setSubmission({ key: submissionKey, status: "submitted", picks: mergedPicks });
+      setSubmissions((previous) => ({
+        ...previous,
+        [submissionKey]: { status: "submitted", picks: mergedPicks },
+      }));
       setPicks({});
       // Keep the legacy server copy, without depending on its availability.
       submitPicksMutation.mutate({ userId: selectedMember, week, picks: mergedPicks });
-      Alert.alert("Picks submitted — locked", `Your Week ${week} picks are saved and cannot be changed. You can make new picks next week.`);
+      Alert.alert("Profile locked for this week", `${selectedMemberName}'s Week ${week} picks are final. No changes are allowed, including Thursday or Sunday. New picks open with next week's slate.`);
     } catch (error) {
       Alert.alert("Couldn't submit picks", error instanceof Error ? error.message : "Please try again before the deadline.");
     } finally {
@@ -280,7 +289,15 @@ export default function PicksScreen() {
               disabled={isSubmitting}
               onPress={() => {
                 if (submittingRef.current) return;
+                if (member.id === selectedMember) return;
                 setPicks({});
+                setSubmissions((previous) => {
+                  const key = `${member.id}_${week}`;
+                  if (previous[key]?.status === "submitted") return previous;
+                  const next = { ...previous };
+                  delete next[key];
+                  return next;
+                });
                 setSelectedMember(member.id);
               }}
             >
@@ -293,6 +310,10 @@ export default function PicksScreen() {
               >
                 {member.name}
               </Text>
+              {(submissions[`${member.id}_${week}`]?.status === "submitted" ||
+                (selectedMember === member.id && submitted)) && (
+                <LockKeyhole size={14} color="#FFFFFF" accessibilityLabel={`Week ${week} picks locked`} />
+              )}
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -300,10 +321,10 @@ export default function PicksScreen() {
 
       <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
         <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 14 }}>
-          {submitted ? "Picks submitted — locked" : checkingSubmission ? "Checking saved picks…" : submissionUnavailable ? "Unable to verify saved picks — read only" : games.length === 0 ? "Checking weekly deadline…" : weeklyLocked ? "Weekly picks closed — read only" : `All picks due: ${deadline === null ? "Checking…" : new Date(deadline).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" })}`}
+          {submitted ? `${selectedMemberName} — Week ${week} locked` : checkingSubmission ? "Checking saved picks…" : submissionUnavailable ? "Unable to verify saved picks — read only" : games.length === 0 ? "Checking weekly deadline…" : weeklyLocked ? "Weekly picks closed — read only" : `All picks due: ${deadline === null ? "Checking…" : new Date(deadline).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" })}`}
         </Text>
         <Text style={{ color: "#E1E8ED", fontSize: 12, marginTop: 4 }}>
-          {submitted ? "These picks are final and cannot be changed. You can make new picks next week." : checkingSubmission ? "Please wait while we check this member’s submission." : submissionUnavailable ? "Picks stay read-only until saved submissions can be verified. Check your connection and reopen this screen to retry." : weeklyLocked && games.length > 0 ? WEEK_LOCK_MESSAGE : "Submit every game before Thursday kickoff. Submitting locks your picks immediately; otherwise the entire week locks at the first kickoff."}
+          {submitted ? "This profile’s picks are read-only for the entire week, including Thursday and Sunday. New picks open with next week’s slate; these picks stay final." : checkingSubmission ? "Please wait while we check this member’s submission." : submissionUnavailable ? "Picks stay read-only until saved submissions can be verified. Check your connection and reopen this screen to retry." : weeklyLocked && games.length > 0 ? WEEK_LOCK_MESSAGE : "Submit every game before Thursday kickoff. Submitting locks your picks immediately; otherwise the entire week locks at the first kickoff."}
         </Text>
       </View>
       <ScrollView style={styles.gamesContainer}>

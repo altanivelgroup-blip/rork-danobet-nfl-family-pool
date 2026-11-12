@@ -109,6 +109,8 @@ export function watchSubmittedPicks(
   onError: (error: Error) => void,
 ): () => void {
   return onSnapshot(picksDoc(userId, week), { includeMetadataChanges: true }, (snap) => {
+    // Do not treat a local, unconfirmed write as a successful submission.
+    if (snap.metadata.hasPendingWrites) return;
     if (snap.exists()) {
       // Any existing submission is locked, including legacy documents.
       onPicks((snap.data().picks as Record<string, GamePick> | undefined) ?? {});
