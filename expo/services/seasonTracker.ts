@@ -14,6 +14,8 @@ import {
   doc,
   getDoc,
   getDocs,
+  onSnapshot,
+  runTransaction,
   setDoc,
 } from "firebase/firestore";
 import { db } from "@/config/firebase";
@@ -81,13 +83,39 @@ export async function savePicks(
 ): Promise<void> {
   const games = await fetchWeekGames(week);
   assertWeeklyPicksOpen(games, picks);
-  await setDoc(picksDoc(userId, week), {
-    userId,
-    week,
-    picks,
-    timestamp: new Date().toISOString(),
-    locked: true,
+  await runTransaction(db, async (transaction) => {
+    const ref = picksDoc(userId, week);
+    const existing = await transaction.get(ref);
+    if (existing.exists()) {
+      throw new Error("These weekly picks have already been submitted and cannot be changed.");
+    }
+    // Recheck on every retry, including if another device submits concurrently.
+    assertWeeklyPicksOpen(games, picks);
+    transaction.set(ref, {
+      userId,
+      week,
+      picks,
+      timestamp: new Date().toISOString(),
+      locked: true,
+    });
   });
+}
+
+/** Watch submissions; only a server-confirmed missing document permits editing. */
+export function watchSubmittedPicks(
+  userId: string,
+  week: number,
+  onPicks: (picks: Record<string, GamePick> | null) => void,
+  onError: (error: Error) => void,
+): () => void {
+  return onSnapshot(picksDoc(userId, week), { includeMetadataChanges: true }, (snap) => {
+    if (snap.exists()) {
+      // Any existing submission is locked, including legacy documents.
+      onPicks((snap.data().picks as Record<string, GamePick> | undefined) ?? {});
+    } else if (!snap.metadata.fromCache) {
+      onPicks(null);
+    }
+  }, onError);
 }
 
 /** Load a member's permanently saved picks for a week (null if none). */

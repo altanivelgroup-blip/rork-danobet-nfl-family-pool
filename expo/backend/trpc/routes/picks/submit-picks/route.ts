@@ -15,13 +15,21 @@ export const submitPicksRoute = publicProcedure
     })
   )
   .mutation(async ({ input }) => {
+    const key = `${input.userId}_${input.week}`;
+    const rejectDuplicate = () => {
+      if (picksStore.has(key)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "These weekly picks have already been submitted and cannot be changed." });
+      }
+    };
+    rejectDuplicate();
     const games = await fetchWeekGames(input.week);
     try {
       assertWeeklyPicksOpen(games, input.picks);
     } catch (error) {
       throw new TRPCError({ code: "FORBIDDEN", message: error instanceof Error ? error.message : "Weekly picks are closed." });
     }
-    const key = `${input.userId}_${input.week}`;
+    // No await between this check and the write: concurrent requests cannot overwrite.
+    rejectDuplicate();
     const data = {
       week: input.week,
       picks: input.picks,
