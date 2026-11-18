@@ -2,12 +2,13 @@ import { doc, getDocFromServer, runTransaction, terminate } from "firebase/fires
 import { db } from "../config/firebase";
 import { FAMILY_MEMBERS, type GamePick, type WeekResult } from "../services/seasonTracker";
 
-// Defaults to read-only. Run with --apply to fix the eight audited result documents.
+// Defaults to read-only. Run with --apply to fix the audited result documents.
 const repairWeeks = new Set([2, 3, 4, 6, 7, 8, 9, 10]);
 const weeks = Array.from({ length: 10 }, (_, index) => index + 1);
 const resultRef = (week: number) => doc(db, "weeklyResults", String(week));
 const pickRef = (week: number, uid: string) => doc(db, "picks", `${uid}_${week}`);
-const expected = "7:4:85,2:3:84,4:2:84,8:2:81,3:1:84,5:1:84,6:1:75,1:0:71,11:0:0";
+const soleWinners: Partial<Record<number, string>> = { 4: "2", 5: "2", 7: "6" };
+const expected = "7:2:85,2:2:84,3:1:84,4:1:84,5:1:84,8:1:81,6:1:75,1:0:71,11:0:0";
 
 // Firestore can return map fields in different orders on successive reads.
 function canonicalJson(value: unknown): string | undefined {
@@ -68,12 +69,20 @@ async function prepare(week: number) {
   }));
   const top = Math.max(...picks.map(({ row }) => row.correct));
   if (top <= 0) throw new Error(`Week ${week} did not produce a verified winner`);
-  const results = picks.map(({ row }) => ({ ...row, isWinner: row.correct === top }));
-  if (before.hasWinner || before.winnerIds.length || before.results.some((row) => row.correct !== 0 || row.isWinner)) {
-    if (sameData(before.results, results)) return { week, before, after: before, picks: [] };
-    throw new Error(`Refusing to overwrite a non-zero result for Week ${week}`);
+  const scored = picks.map(({ row }) => row);
+  const existingScores = before.hasWinner || before.winnerIds.length > 0 || before.results.some((row) => row.correct !== 0 || row.isWinner);
+  if (existingScores && !sameData(before.results.map(({ correct }) => correct), scored.map(({ correct }) => correct))) {
+    throw new Error(`Refusing to overwrite a differing non-zero result for Week ${week}`);
   }
-  return { week, before, after: { ...before, hasWinner: true, results, winnerIds: results.filter((row) => row.isWinner).map((row) => row.uid) }, picks };
+  const soleWinner = soleWinners[week];
+  const results = (existingScores ? before.results : scored).map((row) => ({
+    ...row,
+    isWinner: soleWinner ? row.uid === soleWinner : row.correct === top,
+  }));
+  const after = { ...before, hasWinner: true, results, winnerIds: results.filter((row) => row.isWinner).map((row) => row.uid) };
+  if (sameData(before, after)) return { week, before, after: before, picks: [] };
+  if (existingScores && !soleWinner) throw new Error(`Refusing to change win credit for Week ${week}`);
+  return { week, before, after, picks };
 }
 
 try {

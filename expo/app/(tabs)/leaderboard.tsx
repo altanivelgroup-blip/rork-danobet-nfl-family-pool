@@ -147,7 +147,7 @@ export default function LeaderboardScreen() {
           </Text>
           {weekWinnerNames && (
             <Text style={styles.lastWeekSub}>
-              {lastWeekResult.results[0]?.correct ?? 0} correct picks
+              {lastWeekResult.results.find((row) => row.isWinner)?.correct ?? 0} correct picks
             </Text>
           )}
         </View>

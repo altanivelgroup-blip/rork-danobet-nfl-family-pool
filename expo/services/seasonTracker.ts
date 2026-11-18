@@ -13,10 +13,10 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocFromServer,
   getDocs,
   onSnapshot,
   runTransaction,
-  setDoc,
 } from "firebase/firestore";
 import { db } from "@/config/firebase";
 import { fetchWeekGames } from "@/services/espnClient";
@@ -140,7 +140,7 @@ export async function getWeekResult(
   week: number
 ): Promise<WeekResult | null> {
   try {
-    const snap = await getDoc(weekResultDoc(week));
+    const snap = await getDocFromServer(weekResultDoc(week));
     if (!snap.exists()) return null;
     return snap.data() as WeekResult;
   } catch {
@@ -156,26 +156,28 @@ export async function settleWeek(week: number): Promise<WeekResult | null> {
   const games = await fetchWeekGames(week);
   if (games.length === 0) return null;
 
-  const allFinal = games.every((g) => g.completed);
-  if (!allFinal) return null;
+  if (!games.every((g) => g.completed && /^\d+$/.test(g.homeScore) && /^\d+$/.test(g.awayScore))) return null;
+  const gamesById = new Map(games.map((game) => [game.id, game]));
 
   const results: MemberWeekResult[] = await Promise.all(
     FAMILY_MEMBERS.map(async (member) => {
-      const picks = await loadPicks(member.id, week);
-      const pickable = games.filter((g) => !isKickoffPassed(g.kickoff));
+      // A failed server read must abort scoring, not count as no submission.
+      const snapshot = await getDocFromServer(picksDoc(member.id, week));
+      const picks: unknown = snapshot.exists() ? snapshot.data().picks : {};
+      if (!picks || typeof picks !== "object" || Array.isArray(picks)) throw new Error("Unverified weekly picks");
+      const choices = Object.entries(picks);
       let correct = 0;
-      if (picks) {
-        for (const game of games) {
-          const pick = picks[game.id];
-          if (pick && game.winner && pick === game.winner) correct++;
-        }
+      for (const [id, pick] of choices) {
+        const game = gamesById.get(id);
+        if (!game || (pick !== "home" && pick !== "away")) throw new Error("Picks do not match the weekly schedule");
+        if (game.winner === pick) correct++;
       }
       return {
         uid: member.id,
         name: member.name,
         emoji: member.emoji,
         correct,
-        total: pickable.length,
+        total: choices.length,
         isWinner: false,
       };
     })
@@ -195,8 +197,14 @@ export async function settleWeek(week: number): Promise<WeekResult | null> {
     settledAt: new Date().toISOString(),
   };
 
-  await setDoc(weekResultDoc(week), weekResult);
-  return weekResult;
+  return runTransaction(db, async (transaction) => {
+    const ref = weekResultDoc(week);
+    const existing = await transaction.get(ref);
+    // Never overwrite a settled result, including a manual winner correction.
+    if (existing.exists()) return existing.data() as WeekResult;
+    transaction.set(ref, weekResult);
+    return weekResult;
+  });
 }
 
 /**
@@ -274,10 +282,6 @@ export async function getWeekResultsUpTo(
     if (result) results.push(result);
   }
   return results;
-}
-
-function isKickoffPassed(kickoff: string): boolean {
-  return new Date() >= new Date(kickoff);
 }
 
 /** Remove the connectivity-test document created while wiring things up. */
